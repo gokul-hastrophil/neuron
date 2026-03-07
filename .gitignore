@@ -1,0 +1,70 @@
+# ====== NEURON .gitignore ======
+
+# Environment / Secrets (CRITICAL - never commit these)
+.env
+.env.*
+!.env.example
+*.key
+*.keystore
+!debug.keystore
+keystore.properties
+google-services.json
+signing.properties
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Android / Gradle
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+android/captures/
+android/.idea/
+android/**/*.iml
+android/keystore/
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
+*.DS_Store
+
+# Build outputs
+*.apk
+*.aab
+*.aar
+!android/app/release/*.apk  # keep release APKs for local reference
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker/data/
+docker/volumes/
+
+# Test / Coverage
+coverage/
+.coverage
+htmlcov/
+test-results/
+
+# Local dev
+.neuron/
+tmp/
+temp/
+scratch/

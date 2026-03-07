@@ -1,0 +1,37 @@
+# Neuron Server Dependencies
+# Install: pip install -r requirements.txt
+
+# LLM APIs
+anthropic>=0.40.0
+google-generativeai>=0.8.0
+openai>=1.50.0
+
+# API Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+websockets>=13.0
+
+# MCP Protocol
+mcp>=1.0.0
+
+# HTTP Client
+httpx>=0.27.0
+
+# Data / Validation
+pydantic>=2.8.0
+pydantic-settings>=2.5.0
+
+# Utilities
+python-dotenv>=1.0.0
+numpy>=2.0.0
+pillow>=10.4.0
+aiofiles>=23.0.0
+
+# Logging + Observability
+rich>=13.8.0
+structlog>=24.0.0
+
+# Testing
+pytest>=8.3.0
+pytest-asyncio>=0.23.0
+pytest-httpx>=0.30.0
