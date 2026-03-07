@@ -19,7 +19,14 @@ class NeuronAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Will be used by UITreeReader and event-driven actions in later tasks
+        if (event == null) return
+        if (debugEventLogging) {
+            Log.v(
+                TAG_EVENTS,
+                "event=${event.eventType} pkg=${event.packageName} " +
+                    "class=${event.className} text=${event.text}",
+            )
+        }
     }
 
     override fun onInterrupt() {
@@ -35,9 +42,12 @@ class NeuronAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "NeuronAS"
+        private const val TAG_EVENTS = "NeuronEvents"
 
         @Volatile
         var instance: NeuronAccessibilityService? = null
             private set
+
+        var debugEventLogging: Boolean = false
     }
 }
