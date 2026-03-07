@@ -1,0 +1,22 @@
+# Neuron CODEOWNERS — Auto-assign reviewers based on file paths
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Android team owns all Kotlin code
+/android/                    @gokul-hastrophil
+/skills/android_*.md         @gokul-hastrophil
+
+# Server team owns Python code
+/server/                     @gokul-hastrophil
+/skills/mcp_*.md             @gokul-hastrophil
+/skills/llm_*.md             @gokul-hastrophil
+
+# Infrastructure
+/docker/                     @gokul-hastrophil
+/.github/                    @gokul-hastrophil
+/scripts/                    @gokul-hastrophil
+
+# SDK
+/sdk/                        @gokul-hastrophil
+
+# Docs — anyone can contribute, owner reviews
+/docs/                       @gokul-hastrophil

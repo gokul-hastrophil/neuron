@@ -1,0 +1,75 @@
+{
+  "lastUpdated": "2026-03-08",
+  "metadata": {
+    "description": "Component reliability tracking for Neuron project. Updated as features are implemented and tested.",
+    "scoringFormula": "reliability = (test_pass_rate * 0.4) + (test_coverage * 0.3) + (no_crashes_score * 0.3)",
+    "statuses": ["not_started", "in_progress", "implemented", "tested", "stable"],
+    "updateFrequency": "After each component completes implementation or testing"
+  },
+  "components": {
+    "NeuronAccessibilityService": {
+      "status": "not_started",
+      "description": "Core L5 NERVE layer - executes accessibility actions",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Awaiting implementation sprint"
+    },
+    "UITreeReader": {
+      "status": "not_started",
+      "description": "L2 PERCEPTION layer - reads UI tree and generates screenshots",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Awaiting implementation sprint"
+    },
+    "ActionExecutor": {
+      "status": "not_started",
+      "description": "L5 NERVE layer - executes NeuronAction objects",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Awaiting implementation sprint"
+    },
+    "SensitivityGate": {
+      "status": "not_started",
+      "description": "L4 MEMORY layer - blocks sensitive actions (passwords, banking)",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Critical for privacy - requires extensive testing"
+    },
+    "LLMRouter": {
+      "status": "not_started",
+      "description": "L3 BRAIN layer - routes between T1-T4 LLM tiers",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Awaiting implementation sprint"
+    },
+    "PlanAndExecuteEngine": {
+      "status": "not_started",
+      "description": "L3 BRAIN layer - plans multi-step actions and validates execution",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Awaiting implementation sprint"
+    },
+    "MCP_Server": {
+      "status": "implemented",
+      "description": "Protocol Bus - Python MCP server on localhost:7384",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Skeleton implemented, requires e2e testing"
+    },
+    "OverlayManager": {
+      "status": "not_started",
+      "description": "L6 OUTPUT layer - renders overlay UI and handles TTS",
+      "testCoverage": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "Awaiting implementation sprint"
+    }
+  }
+}
