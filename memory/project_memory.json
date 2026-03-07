@@ -1,0 +1,66 @@
+{
+  "project": {
+    "name": "Neuron",
+    "version": "0.1.0-alpha",
+    "phase": "MVP Development",
+    "currentSprint": 1,
+    "sprintWeek": 1,
+    "sprintTheme": "THE NERVE - AccessibilityService Core",
+    "startDate": "2026-03-07",
+    "mvpTargetDate": "2026-03-28"
+  },
+  "stack": {
+    "android": {
+      "language": "Kotlin 2.0",
+      "minSdk": 26,
+      "targetSdk": 35,
+      "buildSystem": "Gradle 8.x",
+      "di": "Hilt",
+      "async": "Coroutines + Flow",
+      "db": "Room",
+      "ui": "Jetpack Compose"
+    },
+    "server": {
+      "language": "Python 3.12",
+      "api": "FastAPI",
+      "protocol": "MCP (mcp 1.x)",
+      "llmClients": ["anthropic", "google-generativeai", "openai"]
+    }
+  },
+  "llmRouting": {
+    "T0": "Porcupine (no LLM, wake word only)",
+    "T1": "Gemma 3n via MediaPipe (on-device, <100ms)",
+    "T2": "Gemini 2.5 Flash (cloud, ~500ms, $0.15/M)",
+    "T3": "Claude Sonnet 4.5 or Gemini 3 Pro (cloud, ~2s, $3-15/M)",
+    "T4": "Gemma 3n ONLY - triggered by sensitive data/apps"
+  },
+  "repositories": {
+    "main": "github.com/gokul-hastrophil/neuron",
+    "android": "github.com/gokul-hastrophil/neuron/tree/main/android",
+    "server": "github.com/gokul-hastrophil/neuron/tree/main/server",
+    "sdk": "github.com/gokul-hastrophil/neuron-sdk"
+  },
+  "keyFiles": {
+    "claudeConfig": "CLAUDE.md",
+    "vision": "VISION.md",
+    "prd": "PRD.md",
+    "sprint": "SPRINT.md",
+    "androidEntry": "android/app/src/main/kotlin/ai/neuron/accessibility/NeuronAccessibilityService.kt",
+    "brainEntry": "android/app/src/main/kotlin/ai/neuron/brain/NeuronBrainService.kt",
+    "mcpServer": "server/mcp/neuron_mcp_server.py",
+    "setupScript": "scripts/setup_linux.sh"
+  },
+  "openQuestions": [
+    "Play Store review strategy — accessibility vs. sideload path",
+    "Pricing model — when to introduce subscription",
+    "On-device model choice for T1 — Gemma 3n vs Phi-4-mini",
+    "How to handle Android 16 accessibility policy changes"
+  ],
+  "knownIssues": [],
+  "completedMilestones": [],
+  "teamContext": {
+    "techStack": ["Python/AI/ML", "React Native/Flutter", "Native Android (Kotlin/Java)"],
+    "primaryTarget": "Android only",
+    "day1Priority": "All features: voice + app automation + natural language execution"
+  }
+}

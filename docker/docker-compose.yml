@@ -1,0 +1,119 @@
+version: '3.9'
+
+# ============================================================
+# NEURON — Full Development Stack
+# Usage: docker-compose up -d
+# ============================================================
+
+services:
+
+  # ── MCP + Brain API Server ───────────────────────────────
+  neuron-server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    container_name: neuron-server
+    restart: unless-stopped
+    ports:
+      - "8384:8384"   # REST API
+      - "7384:7384"   # MCP WebSocket
+    volumes:
+      - ../server:/app/server
+      - neuron-data:/data
+      - /dev/bus/usb:/dev/bus/usb  # ADB device access
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NEURON_SECRET_TOKEN=${NEURON_SECRET_TOKEN:-auto}
+      - NEURON_DB_PATH=/data/memory.db
+      - NEURON_VECTOR_DB_PATH=/data/vectors.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEBUG=${DEBUG:-false}
+    privileged: true  # Required for ADB USB access
+    networks:
+      - neuron-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8384/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Memory Service ───────────────────────────────────────
+  neuron-memory:
+    image: python:3.12-slim
+    container_name: neuron-memory
+    restart: unless-stopped
+    ports:
+      - "8385:8385"
+    volumes:
+      - ../server/memory:/app
+      - neuron-data:/data
+    working_dir: /app
+    command: >
+      sh -c "pip install -q fastapi uvicorn sqlite-vec numpy anthropic &&
+             python memory_service.py"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NEURON_DB_PATH=/data/memory.db
+      - NEURON_VECTOR_DB_PATH=/data/vectors.db
+    networks:
+      - neuron-net
+
+  # ── ADB Tunnel (exposes phone to server) ─────────────────
+  neuron-adb-bridge:
+    image: budtmo/docker-android:emulator_14.0
+    container_name: neuron-adb-bridge
+    restart: unless-stopped
+    ports:
+      - "5037:5037"   # ADB server
+      - "5554:5554"   # Emulator console
+      - "5555:5555"   # ADB device
+    volumes:
+      - neuron-emulator:/root/.android
+    environment:
+      - EMULATOR_DEVICE=Pixel 7
+      - WEB_VNC=true
+    ports:
+      - "6080:6080"   # VNC web viewer (view emulator in browser!)
+    networks:
+      - neuron-net
+
+  # ── Observability: Log aggregation ───────────────────────
+  neuron-logs:
+    image: grafana/loki:latest
+    container_name: neuron-logs
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - neuron-logs:/loki
+    networks:
+      - neuron-net
+
+  # ── Dashboard (optional, dev only) ───────────────────────
+  neuron-dashboard:
+    image: grafana/grafana:latest
+    container_name: neuron-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - neuron-grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=neuron
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+    networks:
+      - neuron-net
+    profiles:
+      - monitoring
+
+volumes:
+  neuron-data:
+  neuron-emulator:
+  neuron-logs:
+  neuron-grafana:
+
+networks:
+  neuron-net:
+    driver: bridge

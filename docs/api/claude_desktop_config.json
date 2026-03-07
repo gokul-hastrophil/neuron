@@ -1,0 +1,20 @@
+{
+  "_comment": "Claude Desktop configuration to connect to Neuron MCP server",
+  "_instructions": "Copy to: ~/.config/Claude/claude_desktop_config.json (Linux) or ~/Library/Application Support/Claude/claude_desktop_config.json (Mac)",
+  
+  "mcpServers": {
+    "neuron-android": {
+      "command": "python3",
+      "args": [
+        "/home/YOUR_USERNAME/neuron/server/mcp/neuron_mcp_server.py"
+      ],
+      "env": {
+        "NEURON_SECRET_TOKEN": "your-neuron-secret-token",
+        "ADB_DEVICE_ID": "",
+        "ANTHROPIC_API_KEY": "sk-ant-your-key",
+        "GEMINI_API_KEY": "your-gemini-key",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

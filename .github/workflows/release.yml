@@ -1,0 +1,103 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0-beta)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Build + Sign + Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set version
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Build release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
+        env:
+          ANTHROPIC_API_KEY: ""
+          GEMINI_API_KEY: ""
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Generate release notes with Claude
+        id: release-notes
+        run: |
+          pip install anthropic
+          python3 << 'EOF'
+          import anthropic, os, subprocess
+          
+          client = anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
+          
+          # Get git log since last tag
+          log = subprocess.run(
+              ['git', 'log', '--oneline', '-20'],
+              capture_output=True, text=True
+          ).stdout
+          
+          response = client.messages.create(
+              model="claude-sonnet-4-5",
+              max_tokens=500,
+              messages=[{
+                  "role": "user",
+                  "content": f"Write concise GitHub release notes for the Neuron Android AI agent. Recent commits:\n{log}\n\nFormat: ## What's New\n[features]\n## Bug Fixes\n[fixes]\n## Notes\n[install instructions for sideload APK]"
+              }]
+          )
+          
+          notes = response.content[0].text
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"notes<<EOF\n{notes}\nEOF\n")
+          EOF
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_VERSION }}
+          name: Neuron ${{ env.RELEASE_VERSION }}
+          body: |
+            ${{ steps.release-notes.outputs.notes }}
+            
+            ---
+            ## 📱 Installation
+            1. Download `neuron-release.apk` below
+            2. On your Android phone: **Settings → Security → Install Unknown Apps**
+            3. Enable for your file manager
+            4. Open the APK and install
+            5. Go to **Settings → Accessibility → Neuron** and enable
+            6. Open Neuron and follow onboarding
+            
+            **Requirements:** Android 8.0+ (API 26+)
+          files: |
+            android/app/build/outputs/apk/release/app-release-signed.apk
+          draft: false
+          prerelease: ${{ contains(env.RELEASE_VERSION, 'beta') || contains(env.RELEASE_VERSION, 'alpha') }}
