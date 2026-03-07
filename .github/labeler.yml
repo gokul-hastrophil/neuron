@@ -1,0 +1,28 @@
+android:
+  - changed-files:
+      - any-glob-to-any-file: 'android/**'
+
+python:
+  - changed-files:
+      - any-glob-to-any-file: 'server/**'
+
+infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docker/**'
+          - '.github/**'
+          - 'scripts/**'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: 'docs/**'
+
+claude-config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'skills/**'
+          - 'agents/**'
+
+sdk:
+  - changed-files:
+      - any-glob-to-any-file: 'sdk/**'

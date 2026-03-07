@@ -389,4 +389,24 @@ When Claude Code starts, it reads this CLAUDE.md automatically and has full proj
 
 ---
 
+## Auto Memory Protocol
+
+After completing any significant work, update the relevant memory file in `memory/knowledge/`:
+
+1. **Feature completed** → append to `memory/knowledge/features.md`
+2. **Bug fixed** → append to `memory/knowledge/bugs.md`
+3. **New pattern discovered** → append to `memory/knowledge/patterns.md`
+4. **OEM/device issue found** → append to `memory/knowledge/compatibility.md`
+5. **Performance benchmark** → append to `memory/knowledge/performance.md`
+6. **Session ending** → append summary to `memory/changelog/sessions.md`
+
+**Format:** `### [Date] — [Title]\n[Content]\n---`
+
+Keep entries concise (3-5 lines). Link to relevant files with paths.
+Commit memory updates with message: `docs(memory): update [file] — [brief description]`
+
+After test runs or implementation milestones, update `memory/reliability/scores.json` with current component status and coverage.
+
+---
+
 *Last updated: March 2026 | Version: 0.1.0-alpha*

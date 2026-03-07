@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NeuronAction",
+  "description": "Action schema shared between Android (Kotlin) and Server (Python). Single source of truth for all actions that Neuron can execute on the device.",
+  "type": "object",
+  "required": ["action_type"],
+  "properties": {
+    "action_type": {
+      "type": "string",
+      "enum": ["tap", "type", "swipe", "launch", "navigate", "wait", "done", "error", "confirm"],
+      "description": "Type of action to execute. 'done' = task complete, 'error' = task failed, 'confirm' = needs user approval"
+    },
+    "target_id": {
+      "type": "string",
+      "description": "Resource ID of target UI element (e.g., 'com.example.app:id/button'). Optional for some action types."
+    },
+    "target_text": {
+      "type": "string",
+      "description": "Visible text of target element, used as fallback if resource_id unavailable"
+    },
+    "value": {
+      "type": "string",
+      "description": "Action parameter: text to type, swipe direction (up/down/left/right), or app package name to launch"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "LLM confidence score 0-1. Values < 0.7 should trigger confirmation gate."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Why this action was chosen. Used for debugging and user understanding."
+    },
+    "requires_confirmation": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, Neuron pauses and waits for user approval before executing. Used for sensitive actions or low-confidence decisions."
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 100,
+      "description": "Optional timeout for action execution in milliseconds. Defaults to 5000."
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 1,
+      "description": "Number of times to retry if action fails"
+    },
+    "sensitive": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, this action involves sensitive data (passwords, PII, financial) and goes through SensitivityGate"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "action_type": "tap",
+      "target_id": "com.google.android.apps.messaging:id/send_button",
+      "target_text": "Send",
+      "confidence": 0.95,
+      "reasoning": "User asked to send message. Located send button in UI tree.",
+      "requires_confirmation": false
+    },
+    {
+      "action_type": "type",
+      "target_id": "com.android.settings:id/search_box",
+      "target_text": "Search",
+      "value": "battery",
+      "confidence": 0.92,
+      "reasoning": "User wants to search settings for battery info"
+    },
+    {
+      "action_type": "launch",
+      "value": "com.google.android.apps.messaging",
+      "confidence": 0.98,
+      "reasoning": "User asked to open Messages app"
+    },
+    {
+      "action_type": "swipe",
+      "value": "down",
+      "confidence": 0.85,
+      "reasoning": "Need to scroll page down to find next relevant element"
+    },
+    {
+      "action_type": "done",
+      "reasoning": "Successfully completed the user's request"
+    },
+    {
+      "action_type": "error",
+      "reasoning": "Could not find the requested element or perform the action"
+    },
+    {
+      "action_type": "confirm",
+      "value": "transfer $500 to John's account",
+      "confidence": 0.78,
+      "reasoning": "Low confidence on payment amount. Requires user confirmation before proceeding.",
+      "requires_confirmation": true,
+      "sensitive": true
+    }
+  ]
+}

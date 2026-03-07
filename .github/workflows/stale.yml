@@ -1,0 +1,34 @@
+name: Stale Issues and PRs
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6am UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-issue-message: >
+            This issue has been automatically marked as stale because it has not had
+            activity in the last 21 days. It will be closed in 7 days if no further
+            activity occurs. If this issue is still relevant, please comment or
+            remove the stale label.
+          stale-pr-message: >
+            This PR has been automatically marked as stale because it has not had
+            activity in the last 21 days. It will be closed in 7 days if no further
+            activity occurs. Please update or comment to keep it open.
+          close-issue-message: 'Closed due to inactivity. Feel free to reopen if still relevant.'
+          close-pr-message: 'Closed due to inactivity. Feel free to reopen if still relevant.'
+          days-before-stale: 21
+          days-before-close: 7
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          exempt-issue-labels: 'pinned,security,bug-confirmed'
+          exempt-pr-labels: 'pinned,security'
