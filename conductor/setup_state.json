@@ -1,0 +1,54 @@
+{
+  "status": "complete",
+  "project_type": "brownfield",
+  "current_section": "done",
+  "current_question": 0,
+  "completed_sections": ["product", "guidelines", "tech_stack", "workflow", "styleguides"],
+  "answers": {
+    "project_name": "Neuron",
+    "description": "An AI-powered Android agent that autonomously controls your phone through natural language and voice commands.",
+    "problem_statement": "Users must manually navigate complex app UIs to complete simple tasks — Neuron automates this with AI. There's no easy way to control your entire Android phone hands-free through natural language.",
+    "target_users": "Both — end users for daily tasks (hands-free AI-driven phone control), developers for extending via SDK/MCP",
+    "key_goals": [
+      "Reliable UI control via AccessibilityService",
+      "Privacy-first hybrid AI (on-device + cloud)",
+      "Developer-extensible via MCP/SDK",
+      "Ship a working MVP in 3 weeks",
+      "Achieve >70% task success rate on 10-app benchmark",
+      "Zero cloud leaks of sensitive data"
+    ],
+    "voice_tone": "Friendly and approachable",
+    "design_principles": [
+      "Privacy first",
+      "Simplicity over features",
+      "Performance first",
+      "Developer experience focused",
+      "User safety and reliability",
+      "Developer extensibility"
+    ],
+    "languages": ["Kotlin", "Python 3.12+"],
+    "frontend": "Jetpack Compose",
+    "backend": "FastAPI",
+    "database": "Room + sqlite-vec",
+    "additional_tech": ["MediaPipe", "Porcupine", "whisper.cpp", "Hilt", "Docker", "GitHub Actions"],
+    "deployment": "Android APK sideload (Day 1), Play Store later, server via Docker self-hosted",
+    "tdd_strictness": "strict",
+    "commit_strategy": "conventional_commits",
+    "code_review": "required_all",
+    "verification": "after_each_task",
+    "styleguides": ["kotlin", "python"]
+  },
+  "files_created": [
+    "conductor/index.md",
+    "conductor/product.md",
+    "conductor/product-guidelines.md",
+    "conductor/tech-stack.md",
+    "conductor/workflow.md",
+    "conductor/tracks.md",
+    "conductor/code_styleguides/kotlin.md",
+    "conductor/code_styleguides/python.md",
+    "conductor/setup_state.json"
+  ],
+  "started_at": "2026-03-08T12:00:00Z",
+  "last_updated": "2026-03-08T12:15:00Z"
+}
