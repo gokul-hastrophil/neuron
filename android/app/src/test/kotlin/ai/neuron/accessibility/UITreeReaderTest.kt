@@ -157,7 +157,7 @@ class UITreeReaderTest {
         val deepReader = UITreeReader(mockService, maxDepth = 3)
         val deepChild = createMockNode(resourceId = "level3", visible = true, clickable = true, childCount = 0)
         val midChild = createMockNode(
-            resourceId = "level2", visible = true, clickable = false, childCount = 1,
+            resourceId = "level2", visible = true, clickable = true, childCount = 1,
             children = listOf(deepChild),
         )
         val topChild = createMockNode(
@@ -197,7 +197,7 @@ class UITreeReaderTest {
             children = listOf(child),
         )
         every { mockService.rootInActiveWindow } returns root
-        every { mockService.rootInActiveWindow?.packageName } returns "com.whatsapp"
+        every { root.packageName } returns "com.whatsapp"
 
         val result = uiTreeReader.getUITree()
         val json = result.toJson()
