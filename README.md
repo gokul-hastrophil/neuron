@@ -4,7 +4,7 @@
 
 [![Android CI](https://github.com/gokul-hastrophil/neuron/actions/workflows/android-ci.yml/badge.svg)](https://github.com/gokul-hastrophil/neuron/actions)
 [![Latest Release](https://img.shields.io/github/v/release/gokul-hastrophil/neuron?include_prereleases)](https://github.com/gokul-hastrophil/neuron/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ---
 
@@ -163,7 +163,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions welcome.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+Apache License 2.0 — see [LICENSE](LICENSE)
 
 ---
 
