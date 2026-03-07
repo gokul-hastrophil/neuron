@@ -14,8 +14,8 @@ Navigation hub for project context.
 
 ## Active Tracks
 
-<!-- Auto-populated by /conductor:new-track -->
+- [ ] [nerve-accessibility_20260308](./tracks/nerve-accessibility_20260308/index.md) — Week 1 — The Nerve: AccessibilityService Core (0/30 tasks)
 
 ## Getting Started
 
-Run `/conductor:new-track` to create your first feature track.
+Run `/conductor:new-track` to create additional tracks, or `/conductor:implement nerve-accessibility_20260308` to start building.
