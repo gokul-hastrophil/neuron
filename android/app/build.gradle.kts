@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,17 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+fun apiKey(name: String): String =
+    localProperties.getProperty(name)
+        ?: System.getenv(name)
+        ?: ""
 
 android {
     namespace = "ai.neuron"
@@ -19,6 +32,9 @@ android {
         versionName = "0.1.0-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "ANTHROPIC_API_KEY", "\"${apiKey("ANTHROPIC_API_KEY")}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${apiKey("GEMINI_API_KEY")}\"")
     }
 
     buildTypes {
