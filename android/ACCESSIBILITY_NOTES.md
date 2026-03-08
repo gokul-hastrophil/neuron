@@ -9,6 +9,7 @@ Last tested: 2026-03-08
 | Device | OS | Skin | API | Status |
 |--------|----|------|-----|--------|
 | Xiaomi Redmi Note 9 Pro | Android 12 | MIUI Global 14.0.3 (V140) | 31 | Working with workarounds |
+| Honor ELI-NX9 | Android 15 | MagicOS 9.0 | 35 | Working — full WhatsApp E2E passed |
 
 ---
 
@@ -88,6 +89,40 @@ adb shell settings put secure accessibility_enabled 1
 
 ---
 
+## Honor / MagicOS
+
+### E2E Test Results
+
+**Calculator test (42 + 8 = 50):** PASSED
+- Same Calculator app as MIUI (`com.hihonor.calculator`)
+- All resource IDs detected, bounds correct
+- No `ThemeCompatibilityLoader` error (unlike MIUI)
+
+**WhatsApp full E2E test:** PASSED
+- Launched WhatsApp → chat list displayed
+- Tapped search bar (`com.whatsapp:id/my_search_bar`) → keyboard opened
+- Typed "Monesh" → search results appeared with contact
+- Tapped contact row (`com.whatsapp:id/contact_row_container`) → chat opened
+- Tapped message input (`com.whatsapp:id/entry`) → focused
+- Typed "Hello from Neuron AI Agent" → text appeared in input field
+- Send button (`content-desc="Send"`) detected, clickable=true
+- **Did NOT send** (safety rule: no irreversible actions without confirmation)
+
+### Issues Found
+
+1. **No `uiautomator dump` errors** — Honor MagicOS dumps cleanly without errors
+2. **WhatsApp exposes full resource IDs** — `entry`, `send_container`, `conversations_row_contact_name`, etc.
+3. **API 35: `recycle()` is deprecated** — no-op on this device, our code still calls it (safe)
+4. **Install via USB works without extra toggle** (unlike MIUI)
+5. **Service binds immediately** — no special permissions needed beyond standard accessibility
+
+### MagicOS-Specific Notes
+- Battery optimization behavior TBD (needs long-running test)
+- Autostart permission may be needed — check Settings → Apps → Neuron → Startup management
+- Overlay permission: may need `adb shell appops set ai.neuron SYSTEM_ALERT_WINDOW allow`
+
+---
+
 ## Samsung / OneUI
 
 > Not yet tested. Known issues to watch for:
@@ -131,4 +166,4 @@ adb shell settings put secure accessibility_enabled 1
 
 ---
 
-*Updated: 2026-03-08 | Devices tested: 1*
+*Updated: 2026-03-08 | Devices tested: 2 (Xiaomi MIUI, Honor MagicOS)*

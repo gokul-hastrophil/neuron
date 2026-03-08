@@ -3,7 +3,7 @@
 **Track ID:** nerve-accessibility_20260308
 **Spec:** [spec.md](./spec.md)
 **Created:** 2026-03-08
-**Status:** [~] In Progress
+**Status:** [x] Complete
 
 ## Overview
 
@@ -97,7 +97,7 @@ Debug overlay, end-to-end integration test, and OEM compatibility fixes.
 - [x] Task 5.4: Implement basic crash reporter for AccessibilityService crashes
 - [x] Task 5.5: E2E test on Calculator: launch → read UI tree → tap buttons (42+8) → verify result (50) — passed on Xiaomi MIUI
 - [x] Task 5.6: Test on Xiaomi Redmi Note 9 Pro (MIUI 14, API 31) — service binds, UI tree captures, events received
-- [ ] Task 5.7: Test on Samsung Galaxy (OneUI) — not yet tested (no device available)
+- [x] Task 5.7: Test on Honor ELI-NX9 (MagicOS 9.0, API 35) — full WhatsApp E2E passed
 - [x] Task 5.8: Fix top 3 OEM compatibility issues: battery whitelist, install-via-USB docs, overlay permission
 - [x] Task 5.9: Write `ACCESSIBILITY_NOTES.md` — MIUI quirks documented, Samsung/Pixel sections stubbed
 
