@@ -14,8 +14,9 @@ Navigation hub for project context.
 
 ## Active Tracks
 
-- [ ] [nerve-accessibility_20260308](./tracks/nerve-accessibility_20260308/index.md) — Week 1 — The Nerve: AccessibilityService Core (0/30 tasks)
+- [x] [nerve-accessibility_20260308](./tracks/nerve-accessibility_20260308/index.md) — Week 1 — The Nerve: AccessibilityService Core (30/30 tasks)
+- [ ] [brain-llm-routing_20260308](./tracks/brain-llm-routing_20260308/index.md) — Week 2 — The Brain: LLM Routing + Planning Engine (0/37 tasks)
 
 ## Getting Started
 
-Run `/conductor:new-track` to create additional tracks, or `/conductor:implement nerve-accessibility_20260308` to start building.
+Run `/conductor:implement brain-llm-routing_20260308` to start building Week 2.
