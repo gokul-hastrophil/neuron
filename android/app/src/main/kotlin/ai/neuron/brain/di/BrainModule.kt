@@ -3,8 +3,8 @@ package ai.neuron.brain.di
 import ai.neuron.BuildConfig
 import ai.neuron.accessibility.model.UITree
 import ai.neuron.brain.PlanAndExecuteEngine
-import ai.neuron.brain.client.ClaudeClient
 import ai.neuron.brain.client.GeminiFlashClient
+import ai.neuron.brain.client.NvidiaQwenClient
 import ai.neuron.brain.model.LLMAction
 import dagger.Module
 import dagger.Provides
@@ -47,8 +47,8 @@ object BrainModule {
 
     @Provides
     @Singleton
-    fun provideClaudeClient(okHttpClient: OkHttpClient): ClaudeClient =
-        ClaudeClient(okHttpClient)
+    fun provideNvidiaQwenClient(okHttpClient: OkHttpClient): NvidiaQwenClient =
+        NvidiaQwenClient(okHttpClient)
 
     @Provides
     @Singleton
@@ -76,9 +76,9 @@ object BrainModule {
         if (geminiKey.isNotEmpty()) {
             sanitized = sanitized.replace(geminiKey, "***GEMINI_KEY***")
         }
-        val anthropicKey = BuildConfig.ANTHROPIC_API_KEY
-        if (anthropicKey.isNotEmpty()) {
-            sanitized = sanitized.replace(anthropicKey, "***ANTHROPIC_KEY***")
+        val nvidiaKey = BuildConfig.NVIDIA_API_KEY
+        if (nvidiaKey.isNotEmpty()) {
+            sanitized = sanitized.replace(nvidiaKey, "***NVIDIA_KEY***")
         }
         return sanitized
     }

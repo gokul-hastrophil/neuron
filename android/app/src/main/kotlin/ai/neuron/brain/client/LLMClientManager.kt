@@ -11,7 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class LLMClientManager @Inject constructor(
     private val geminiClient: GeminiFlashClient,
-    private val claudeClient: ClaudeClient,
+    private val qwenClient: NvidiaQwenClient,
 ) {
     companion object {
         private const val MAX_RETRIES = 3
@@ -31,7 +31,7 @@ class LLMClientManager @Inject constructor(
                 withTimeout(timeoutMs) {
                     when (tier) {
                         LLMTier.T2 -> geminiClient.generate(systemPrompt, userMessage)
-                        LLMTier.T3 -> claudeClient.generate(systemPrompt, userMessage)
+                        LLMTier.T3 -> qwenClient.generate(systemPrompt, userMessage)
                         else -> NeuronResult.Error("Tier $tier not supported by cloud clients")
                     }
                 }

@@ -98,7 +98,7 @@ class LLMRouterTest {
             coEvery {
                 clientManager.generate(LLMTier.T3, any(), any())
             } returns NeuronResult.Success(
-                successResponse.copy(tier = "T3", modelId = "claude-sonnet-4-5"),
+                successResponse.copy(tier = "T3", modelId = "qwen/qwen3.5-397b-a17b"),
             )
 
             val result = router.route("find cheapest flight to NYC", normalTree, classification)
@@ -166,7 +166,7 @@ class LLMRouterTest {
             coEvery {
                 clientManager.generate(LLMTier.T3, any(), any())
             } returns NeuronResult.Success(
-                successResponse.copy(tier = "T3", modelId = "claude-sonnet-4-5"),
+                successResponse.copy(tier = "T3", modelId = "qwen/qwen3.5-397b-a17b"),
             )
 
             val result = router.route("search for weather", normalTree, classification)
@@ -206,8 +206,8 @@ class LLMRouterTest {
 
             // T2 has 2000ms budget
             assertEquals(2000L, LLMTier.T2.latencyBudgetMs)
-            // T3 has 5000ms budget
-            assertEquals(5000L, LLMTier.T3.latencyBudgetMs)
+            // T3 has 10000ms budget (Qwen 397B needs more time)
+            assertEquals(10_000L, LLMTier.T3.latencyBudgetMs)
 
             coEvery {
                 clientManager.generate(LLMTier.T2, any(), any())

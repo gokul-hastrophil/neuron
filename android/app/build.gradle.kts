@@ -35,6 +35,7 @@ android {
 
         buildConfigField("String", "ANTHROPIC_API_KEY", "\"${apiKey("ANTHROPIC_API_KEY")}\"")
         buildConfigField("String", "GEMINI_API_KEY", "\"${apiKey("GEMINI_API_KEY")}\"")
+        buildConfigField("String", "NVIDIA_API_KEY", "\"${apiKey("NVIDIA_API_KEY")}\"")
     }
 
     buildTypes {
