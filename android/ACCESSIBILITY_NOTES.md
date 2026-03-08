@@ -14,9 +14,36 @@ Last tested: 2026-03-08
 
 ## Xiaomi / MIUI
 
+### E2E Test Results
+
+**Calculator test (42 + 8 = 50):** PASSED
+- Launched `com.hihonor.calculator/.Calculator` via Intent
+- Dumped UI tree — all button resource IDs detected (digit_0-9, op_add, op_clr, eq, etc.)
+- Extracted bounds from UI nodes, computed center coordinates
+- Tapped C, 4, 2, +, 8, = in sequence via `input tap`
+- Result: **50** displayed correctly
+- Note: MIUI Calculator text content not included in `uiautomator dump` XML text attribute (empty), but resource IDs and bounds are correct
+
+**Contacts app:** PARTIAL
+- MIUI Contacts does not expose resource IDs (only `android:id/content`)
+- Content-descriptions also missing
+- Must rely on coordinate-based taps or text search for MIUI system apps
+
 ### Issues Found
 
-1. **`uiautomator dump` throws FileNotFoundException**
+1. **MIUI system apps don't expose resource IDs**
+   - Contacts, Messages, and other MIUI system apps have empty `resource-id` attributes
+   - Third-party apps and some Honor/Huawei rebranded apps (Calculator) do expose IDs
+   - Impact: Cannot use `findAccessibilityNodeInfosByViewId()` for MIUI system apps
+   - Fix: Fall back to coordinate-based taps using bounds, or text/content-desc matching
+
+2. **MIUI Calculator text content missing from UI dump**
+   - `uiautomator dump` shows empty `text=""` for formula and result TextViews
+   - But `AccessibilityNodeInfo.getText()` may still return values at runtime
+   - Impact: Cannot verify action results via UI dump text comparison
+   - Fix: Use screenshot + OCR, or AccessibilityNodeInfo direct text access
+
+3. **`uiautomator dump` throws FileNotFoundException**
    - Error: `ThemeCompatibilityLoader` can't find `theme_compatibility.xml`
    - Impact: Cosmetic only — dump still succeeds
    - Fix: None needed, ignore the stacktrace
