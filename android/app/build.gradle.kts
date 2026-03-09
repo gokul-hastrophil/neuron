@@ -40,6 +40,18 @@ android {
         buildConfigField("String", "OLLAMA_API_KEY", "\"${apiKey("OLLAMA_API_KEY")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("NEURON_KEYSTORE_PATH") ?: ""
+            if (keystorePath.isNotEmpty()) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("NEURON_KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("NEURON_KEY_ALIAS") ?: "neuron"
+                keyPassword = System.getenv("NEURON_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -48,6 +60,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val keystorePath = System.getenv("NEURON_KEYSTORE_PATH") ?: ""
+            if (keystorePath.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
