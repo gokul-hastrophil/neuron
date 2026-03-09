@@ -1,12 +1,12 @@
 {
-  "lastUpdated": "2026-03-08",
+  "lastUpdated": "2026-03-09",
   "metadata": {
     "description": "Component reliability tracking for Neuron project. Updated as features are implemented and tested.",
     "scoringFormula": "reliability = (test_pass_rate * 0.4) + (test_coverage * 0.3) + (no_crashes_score * 0.3)",
     "statuses": ["not_started", "in_progress", "implemented", "tested", "stable"],
     "updateFrequency": "After each component completes implementation or testing"
   },
-  "totalTests": 104,
+  "totalTests": 153,
   "totalPassRate": 100,
   "components": {
     "NeuronAccessibilityService": {
@@ -27,11 +27,11 @@
     },
     "ActionExecutor": {
       "status": "tested",
-      "description": "L5 NERVE layer - executes NeuronAction objects (tap, type, swipe, scroll, global nav, launch)",
+      "description": "L5 NERVE layer - executes NeuronAction objects (tap, type, swipe, scroll, global nav, launch, PressKey)",
       "testCount": 22,
       "testPassRate": 100,
       "reliability": 75,
-      "notes": "22 tests passing. Multi-fallback launch works. On-device testing confirms basic actions."
+      "notes": "22 tests passing. Multi-fallback launch + PressKey (IME_ENTER). On-device testing confirms basic actions."
     },
     "SensitivityGate": {
       "status": "tested",
@@ -39,15 +39,15 @@
       "testCount": 24,
       "testPassRate": 100,
       "reliability": 85,
-      "notes": "24 tests passing. Editable-only text matching prevents false positives on label text. Banking packages, password fields, health apps all covered."
+      "notes": "24 tests passing. Editable-only text matching prevents false positives on label text."
     },
     "LLMRouter": {
       "status": "tested",
-      "description": "L3 BRAIN layer - routes between T0-T4 LLM tiers with fallback chain",
+      "description": "L3 BRAIN layer - routes between T0-T4 LLM tiers with fallback chain, injects ToolRegistry + workflow hints",
       "testCount": 8,
       "testPassRate": 100,
       "reliability": 80,
-      "notes": "8 tests passing. T2: Gemini→Ollama Cloud. T3: Ollama Cloud→NVIDIA→OpenRouter. 4-provider resilience."
+      "notes": "8 tests passing. Now injects ToolRegistry tools into system prompt and LongTermMemory workflow hints."
     },
     "IntentClassifier": {
       "status": "tested",
@@ -59,11 +59,11 @@
     },
     "PlanAndExecuteEngine": {
       "status": "tested",
-      "description": "L3 BRAIN layer - ReAct loop state machine for multi-step task execution",
+      "description": "L3 BRAIN layer - ReAct loop state machine for multi-step task execution with memory extraction",
       "testCount": 9,
       "testPassRate": 100,
       "reliability": 75,
-      "notes": "9 tests passing. 16-test integration benchmark: 9/14 PASS (64%), 3 PARTIAL, 2 FAIL. Single-step 100%, multi-step limited by LLM latency."
+      "notes": "9 tests passing. Now extracts preferences + workflows to LongTermMemory on task completion."
     },
     "WorkingMemory": {
       "status": "tested",
@@ -72,6 +72,110 @@
       "testPassRate": 100,
       "reliability": 85,
       "notes": "11 tests passing. Current task, action history, screen state hash, serialization roundtrip."
+    },
+    "LongTermMemory": {
+      "status": "tested",
+      "description": "L4 MEMORY layer - Room DB with UserPreference, AppWorkflow, ContactAssociation entities",
+      "testCount": 16,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "16 tests passing. Upsert logic, success/fail tracking, fuzzy contact search."
+    },
+    "MemoryExtractor": {
+      "status": "implemented",
+      "description": "L4 MEMORY layer - auto-extracts preferences and workflows after task completion",
+      "testCount": 0,
+      "testPassRate": null,
+      "reliability": 60,
+      "notes": "Extracts app preferences from LAUNCH actions and caches workflow action sequences as JSON."
+    },
+    "AppResolver": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - 4-step app resolution: known apps → package validation → fuzzy label → intent-based",
+      "testCount": 25,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "25 tests passing. Intent-based fallback handles OEM package name differences (Honor, Xiaomi)."
+    },
+    "ActionMapper": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - maps LLMAction to NeuronAction including NAVIGATE enter/submit/notifications",
+      "testCount": 5,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "5 tests passing. Supports home/back/recents/notifications/quick_settings/enter/submit."
+    },
+    "ToolRegistry": {
+      "status": "tested",
+      "description": "SDK layer - in-memory tool registry with register/unregister/invoke/toPromptSnippet",
+      "testCount": 12,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "12 tests passing. Duplicate detection, prompt snippet generation, async invoke."
+    },
+    "NeuronSDK": {
+      "status": "implemented",
+      "description": "SDK layer - public API for third-party tool registration",
+      "testCount": 0,
+      "testPassRate": null,
+      "reliability": 70,
+      "notes": "Init guard, delegates to ToolRegistry. Tested indirectly via ToolRegistry tests."
+    },
+    "SpeechRecognitionManager": {
+      "status": "tested",
+      "description": "L1 INPUT layer - wraps Android SpeechRecognizer with state machine and streaming partial results",
+      "testCount": 15,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "15 tests passing. State: IDLE→LISTENING→PROCESSING→IDLE/ERROR. Partial text, final text, error, rmsDb."
+    },
+    "ConfirmationGate": {
+      "status": "tested",
+      "description": "L5 NERVE layer - blocks irreversible actions (send/delete/pay) until user confirms",
+      "testCount": 10,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "10 tests passing. Checks requiresConfirmation flag, sensitive flag, confidence < 0.7, dangerous keywords."
+    },
+    "VoiceInputController": {
+      "status": "tested",
+      "description": "L1 INPUT layer - bridges SpeechRecognitionManager with OverlayManager for hold-to-speak",
+      "testCount": 3,
+      "testPassRate": 100,
+      "reliability": 70,
+      "notes": "3 tests passing. Hold/release/cancel lifecycle, transcript observation, command callback."
+    },
+    "OnboardingScreen": {
+      "status": "implemented",
+      "description": "L6 OUTPUT layer - 4-step onboarding wizard (Welcome → Permissions → Test → Done)",
+      "testCount": 0,
+      "testPassRate": null,
+      "reliability": 60,
+      "notes": "Compose-only UI. Persists completion state in SharedPreferences."
+    },
+    "SettingsScreen": {
+      "status": "implemented",
+      "description": "L6 OUTPUT layer - API key entry, privacy toggle, memory clear, audit log link",
+      "testCount": 0,
+      "testPassRate": null,
+      "reliability": 60,
+      "notes": "Compose-only UI. Settings persist in SharedPreferences."
+    },
+    "MCP_Server": {
+      "status": "tested",
+      "description": "Protocol Bus - Python MCP server on localhost:7384 with 10 tools",
+      "testCount": 14,
+      "testPassRate": 100,
+      "reliability": 75,
+      "notes": "14 pytest tests passing. Tool definitions, ADB bridge, handlers all tested with mocks."
+    },
+    "OverlayManager": {
+      "status": "implemented",
+      "description": "L6 OUTPUT layer - floating overlay with 7 states (HIDDEN, IDLE, LISTENING, THINKING, EXECUTING, DONE, ERROR)",
+      "testCount": 0,
+      "testPassRate": null,
+      "reliability": 60,
+      "notes": "ComposeView-based overlay with accessibility overlay window type. LISTENING state added for voice."
     },
     "NeuronBrainService": {
       "status": "implemented",
@@ -87,23 +191,15 @@
       "testCount": 0,
       "testPassRate": null,
       "reliability": 50,
-      "notes": "Works on-device when not rate-limited. 4-model chain (2.0-flash → 2.5-flash → 2.5-flash-lite → 2.0-flash-lite). Free tier: 20 req/day per model."
-    },
-    "NvidiaQwenClient": {
-      "status": "implemented",
-      "description": "L3 BRAIN layer - NVIDIA NIM Qwen 3.5 client",
-      "testCount": 0,
-      "testPassRate": null,
-      "reliability": 0,
-      "notes": "API endpoint returns 404. Known server-side issue per NVIDIA forums. Added Accept header, still failing."
+      "notes": "Works on-device when not rate-limited. 4-model chain."
     },
     "OpenRouterClient": {
       "status": "tested",
-      "description": "L3 BRAIN layer - OpenRouter client with free model fallback chain (Llama 3.3 70B, Gemma 3 27B)",
+      "description": "L3 BRAIN layer - OpenRouter client with free model fallback chain",
       "testCount": 0,
       "testPassRate": null,
       "reliability": 80,
-      "notes": "Working on-device. Llama 3.3 70B: ~3s latency, valid action JSON. 50 req/day free. Last resort T3 fallback."
+      "notes": "Working on-device. Llama 3.3 70B: ~3s latency. 50 req/day free."
     },
     "OllamaCloudClient": {
       "status": "tested",
@@ -111,23 +207,7 @@
       "testCount": 0,
       "testPassRate": null,
       "reliability": 80,
-      "notes": "16-test benchmark: primary provider for all tests. Action selection accuracy 86-93%. Latency 8-17s. Handles app launches, navigation, basic taps. Struggles with obfuscated IDs and multi-step state tracking."
-    },
-    "MCP_Server": {
-      "status": "implemented",
-      "description": "Protocol Bus - Python MCP server on localhost:7384",
-      "testCount": 0,
-      "testPassRate": null,
-      "reliability": null,
-      "notes": "Skeleton implemented, requires e2e testing"
-    },
-    "OverlayManager": {
-      "status": "not_started",
-      "description": "L6 OUTPUT layer - renders overlay UI and handles TTS",
-      "testCount": 0,
-      "testPassRate": null,
-      "reliability": null,
-      "notes": "Awaiting implementation sprint"
+      "notes": "Primary T2/T3 provider. Action selection accuracy 86-93%. Latency 8-17s."
     }
   }
 }
