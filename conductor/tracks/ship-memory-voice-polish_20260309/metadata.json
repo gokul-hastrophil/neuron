@@ -1,0 +1,18 @@
+{
+  "id": "ship-memory-voice-polish_20260309",
+  "title": "Week 3 — Ship: Memory, Voice, Overlay, Polish",
+  "type": "feature",
+  "status": "in_progress",
+  "created": "2026-03-09T00:00:00Z",
+  "updated": "2026-03-09T00:00:00Z",
+  "current_phase": 0,
+  "current_task": "0.1",
+  "phases": {
+    "total": 7,
+    "completed": 0
+  },
+  "tasks": {
+    "total": 48,
+    "completed": 1
+  }
+}
