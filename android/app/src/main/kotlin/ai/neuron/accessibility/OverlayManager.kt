@@ -22,6 +22,7 @@ class OverlayManager(
     enum class OverlayState {
         HIDDEN,
         IDLE,
+        LISTENING,
         THINKING,
         EXECUTING,
         DONE,
