@@ -57,6 +57,7 @@ class ActionExecutor(
             is NeuronAction.Swipe -> executeSwipe(action)
             is NeuronAction.Scroll -> executeScroll(action)
             is NeuronAction.LongPress -> executeLongPress(action)
+            is NeuronAction.PressKey -> executePressKey(action)
             is NeuronAction.LaunchApp -> executeLaunchApp(action)
             is NeuronAction.GlobalAction -> executeGlobalAction(action)
         }
@@ -155,6 +156,28 @@ class ActionExecutor(
         } finally {
             node.recycle()
         }
+    }
+
+    private fun executePressKey(action: NeuronAction.PressKey): ActionResult {
+        val root = service.rootInActiveWindow
+        if (root != null) {
+            try {
+                val focusedNode = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                if (focusedNode != null) {
+                    try {
+                        // ACTION_IME_ENTER triggers the IME action (search/done/next/send)
+                        focusedNode.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+                        return ActionResult.Success(action)
+                    } finally {
+                        focusedNode.recycle()
+                    }
+                }
+            } finally {
+                root.recycle()
+            }
+        }
+        Log.w(TAG, "PressKey: no focused input node, cannot dispatch key event")
+        return ActionResult.Error(action, "No focused input node to send key event")
     }
 
     private fun executeLaunchApp(action: NeuronAction.LaunchApp): ActionResult {

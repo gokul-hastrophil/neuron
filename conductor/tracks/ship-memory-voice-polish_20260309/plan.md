@@ -18,9 +18,9 @@ Fix the 3 specific failures identified in the 16-test integration benchmark (ITR
 ### Tasks
 
 - [x] Task 0.1: Add intent-based app resolution fallback — use standard Intent actions (ACTION_DIAL, ACTION_CAMERA_BUTTON, ACTION_SET_ALARM) when package name resolution fails, so OEM devices (Honor dialer = com.hihonor.contacts) resolve correctly
-- [ ] Task 0.2: Add "press Enter to submit" hint to system prompt — when the LLM types text in a search/URL bar, the prompt should instruct it to submit via NAVIGATE ENTER or TAP on a suggestion, preventing the TYPE-repeat loop
-- [ ] Task 0.3: Add NAVIGATE NOTIFICATIONS action mapping — map SWIPE DOWN from top / "open notifications" commands to AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
-- [ ] Task 0.4: Add NAVIGATE ENTER key action — map "press enter" / "submit" to InputConnection dispatch of KEYCODE_ENTER for search bar submission
+- [x] Task 0.2: Add "press Enter to submit" hint to system prompt — when the LLM types text in a search/URL bar, the prompt should instruct it to submit via NAVIGATE ENTER or TAP on a suggestion, preventing the TYPE-repeat loop
+- [x] Task 0.3: Add NAVIGATE NOTIFICATIONS action mapping — map SWIPE DOWN from top / "open notifications" commands to AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+- [x] Task 0.4: Add NAVIGATE ENTER key action — map "press enter" / "submit" to InputConnection dispatch of KEYCODE_ENTER for search bar submission
 - [ ] Task 0.5: Re-run 16-test benchmark on device and verify >70% pass rate
 
 ### Verification

@@ -28,7 +28,9 @@ object SystemPrompts {
         7. NEVER interact with password fields — if you see one, return action_type "error".
         8. For swipe: value is "up", "down", "left", or "right".
         9. For launch: value is the package name.
-        10. For navigate: value is "home", "back", "recents", "notifications".
+        10. For navigate: value is "home", "back", "recents", "notifications", or "enter" (to press Enter/submit).
+        11. After typing in a search bar or URL bar, ALWAYS submit: use navigate with value "enter", or tap a search suggestion. Never just type and stop.
+        12. To open the notification shade, use navigate with value "notifications". Do NOT use swipe for this.
     """.trimIndent()
 
     val V2_MULTI_STEP_PLAN = """
@@ -62,5 +64,7 @@ object SystemPrompts {
         6. Set requires_confirmation = true on steps that send, pay, delete, or post.
         7. The final step should be action_type "done".
         8. NEVER plan interactions with password fields.
+        9. After a "type" step in a search/URL bar, always add a "navigate" step with value "enter" to submit, or a "tap" step on a search suggestion.
+        10. To open the notification shade, use navigate with value "notifications". Do NOT use swipe.
     """.trimIndent()
 }
