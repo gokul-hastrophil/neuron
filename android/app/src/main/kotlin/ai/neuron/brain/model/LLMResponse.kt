@@ -32,6 +32,7 @@ enum class ActionType {
     @SerialName("done") DONE,
     @SerialName("error") ERROR,
     @SerialName("confirm") CONFIRM,
+    @SerialName("tool_call") TOOL_CALL,
 }
 
 /**

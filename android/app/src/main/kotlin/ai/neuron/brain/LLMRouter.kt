@@ -9,6 +9,7 @@ import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
 import ai.neuron.memory.LongTermMemory
+import ai.neuron.sdk.ToolRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,6 +18,7 @@ class LLMRouter @Inject constructor(
     private val sensitivityGate: SensitivityGate,
     private val clientManager: LLMClientManager,
     private val longTermMemory: LongTermMemory,
+    private val toolRegistry: ToolRegistry,
 ) {
     companion object {
         private val FALLBACK_CHAIN = mapOf(
@@ -99,7 +101,8 @@ class LLMRouter @Inject constructor(
             |9. Analyze what's visible in the UI tree to determine what step of the task has already been completed.
             |10. After typing text in a search bar or URL bar, you MUST submit it: use action_type "navigate" with value "enter" to press Enter, OR use "tap" on a search suggestion/button. Do NOT just type and stop — always follow TYPE with a submit action.
             |11. To open the notification shade, use action_type "navigate" with value "notifications". Do NOT use "swipe" for this.
-        """.trimMargin()
+            |12. If a custom tool is listed below that matches the user's intent, prefer using it by emitting action_type "tool_call" with value set to the tool name and target_text set to JSON-encoded parameters.
+        """.trimMargin() + "\n" + toolRegistry.toPromptSnippet()
     }
 
     private fun buildUserMessage(command: String, uiTree: UITree, workflowHint: String?): String {

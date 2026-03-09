@@ -7,8 +7,8 @@
   "properties": {
     "action_type": {
       "type": "string",
-      "enum": ["tap", "type", "swipe", "launch", "navigate", "wait", "done", "error", "confirm"],
-      "description": "Type of action to execute. 'done' = task complete, 'error' = task failed, 'confirm' = needs user approval"
+      "enum": ["tap", "type", "swipe", "launch", "navigate", "wait", "done", "error", "confirm", "tool_call"],
+      "description": "Type of action to execute. 'done' = task complete, 'error' = task failed, 'confirm' = needs user approval, 'tool_call' = invoke a registered SDK tool"
     },
     "target_id": {
       "type": "string",
@@ -99,6 +99,13 @@
       "reasoning": "Low confidence on payment amount. Requires user confirmation before proceeding.",
       "requires_confirmation": true,
       "sensitive": true
+    },
+    {
+      "action_type": "tool_call",
+      "value": "check_balance",
+      "target_text": "{\"account\": \"savings\"}",
+      "confidence": 0.95,
+      "reasoning": "User asked to check balance. Using registered SDK tool."
     }
   ]
 }
