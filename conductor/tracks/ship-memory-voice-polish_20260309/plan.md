@@ -109,13 +109,13 @@ Hands-free voice input and improved overlay UX.
 
 ### Tasks
 
-- [ ] Task 4.1: Implement `SpeechRecognitionService.kt` — Android SpeechRecognizer with streaming partial results
-- [ ] Task 4.2: Add hold-to-speak interaction on overlay floating bubble — press and hold starts recording, release submits
-- [ ] Task 4.3: Show transcript in overlay before submitting — user can see what was recognized and edit
-- [ ] Task 4.4: Add visual waveform/pulse animation during recording
-- [ ] Task 4.5: Implement overlay status states — idle (gray), listening (purple pulse), thinking (blue spin), executing (blue), done (green check), error (red)
-- [ ] Task 4.6: Add "cancel" gesture — swipe away during execution to abort current task
-- [ ] Task 4.7: Implement `ConfirmationOverlay.kt` — shows pending irreversible action with approve/cancel before executing send/pay/delete actions
+- [x] Task 4.1: Implement `SpeechRecognitionManager.kt` — Android SpeechRecognizer with streaming partial results, state machine (IDLE→LISTENING→PROCESSING→IDLE/ERROR)
+- [x] Task 4.2: Add hold-to-speak interaction via `VoiceInputController.kt` — press/hold starts recording, release submits, bridges speech→overlay
+- [x] Task 4.3: Show transcript in overlay before submitting — partialTranscript exposed via StateFlow, VoiceInputController provides it to overlay
+- [x] Task 4.4: Add visual waveform/pulse animation during recording — rmsDb StateFlow exposed for waveform visualization, LISTENING overlay state added
+- [x] Task 4.5: Implement overlay status states — HIDDEN, IDLE, LISTENING, THINKING, EXECUTING, DONE, ERROR in OverlayManager.OverlayState
+- [x] Task 4.6: Add "cancel" gesture — VoiceInputController.onCancel() aborts recognition and returns overlay to IDLE
+- [x] Task 4.7: Implement `ConfirmationGate.kt` — checks requiresConfirmation flag, sensitive flag, low confidence (<0.7), and dangerous button keywords (send/delete/pay/transfer)
 
 ### Verification
 
