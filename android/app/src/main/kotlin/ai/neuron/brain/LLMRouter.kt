@@ -94,6 +94,8 @@ class LLMRouter @Inject constructor(
             |7. ALWAYS include "confidence" (0.0-1.0) in your response. Set 0.9+ when certain, 0.7-0.9 when likely correct, below 0.7 only when unsure.
             |8. Check the "package_name" field in the UI tree. If the requested app is already in the foreground, do NOT launch it again — proceed to the next step of the task.
             |9. Analyze what's visible in the UI tree to determine what step of the task has already been completed.
+            |10. After typing text in a search bar or URL bar, you MUST submit it: use action_type "navigate" with value "enter" to press Enter, OR use "tap" on a search suggestion/button. Do NOT just type and stop — always follow TYPE with a submit action.
+            |11. To open the notification shade, use action_type "navigate" with value "notifications". Do NOT use "swipe" for this.
         """.trimMargin()
     }
 

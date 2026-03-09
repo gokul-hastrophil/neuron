@@ -33,6 +33,9 @@ sealed class NeuronAction {
     data class LaunchApp(val packageName: String) : NeuronAction()
 
     @Serializable
+    data class PressKey(val keyCode: Int) : NeuronAction()
+
+    @Serializable
     data class GlobalAction(val action: GlobalActionType) : NeuronAction()
 }
 

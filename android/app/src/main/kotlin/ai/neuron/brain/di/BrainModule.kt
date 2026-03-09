@@ -4,11 +4,11 @@ import ai.neuron.BuildConfig
 import ai.neuron.accessibility.ActionExecutor
 import ai.neuron.accessibility.NeuronAccessibilityService
 import ai.neuron.accessibility.UITreeReader
-import ai.neuron.accessibility.model.GlobalActionType
 import ai.neuron.accessibility.model.NeuronAction
 import ai.neuron.accessibility.model.ActionResult
 import ai.neuron.accessibility.model.ScrollDirection
 import ai.neuron.accessibility.model.UITree
+import ai.neuron.brain.ActionMapper
 import ai.neuron.brain.AppResolver
 import ai.neuron.brain.PlanAndExecuteEngine
 import ai.neuron.brain.client.GeminiFlashClient
@@ -149,20 +149,7 @@ object BrainModule {
                 }
                 NeuronAction.LaunchApp(packageName = packageName)
             }
-            ActionType.NAVIGATE -> {
-                val globalActionType = when (action.value?.lowercase()) {
-                    "home" -> GlobalActionType.HOME
-                    "back" -> GlobalActionType.BACK
-                    "recents" -> GlobalActionType.RECENTS
-                    "notifications" -> GlobalActionType.NOTIFICATIONS
-                    "quick_settings", "quicksettings" -> GlobalActionType.QUICK_SETTINGS
-                    else -> {
-                        Log.w(TAG, "ActionDispatcher: unknown NAVIGATE target '${action.value}', defaulting to HOME")
-                        GlobalActionType.HOME
-                    }
-                }
-                NeuronAction.GlobalAction(action = globalActionType)
-            }
+            ActionType.NAVIGATE -> ActionMapper.mapNavigate(action.value)
             // Terminal/meta action types — not dispatched to the accessibility layer
             ActionType.DONE,
             ActionType.ERROR,
