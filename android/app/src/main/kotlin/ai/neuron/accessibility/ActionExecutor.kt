@@ -159,13 +159,50 @@ class ActionExecutor(
 
     private fun executeLaunchApp(action: NeuronAction.LaunchApp): ActionResult {
         val context = service.applicationContext
-        val intent = context.packageManager.getLaunchIntentForPackage(action.packageName)
-            ?: return ActionResult.Error(action, "No launch intent for package '${action.packageName}'")
+        val pm = context.packageManager
+
+        // Try standard launch intent first
+        var intent = pm.getLaunchIntentForPackage(action.packageName)
+
+        // Fallback: query for MAIN/LAUNCHER activity directly (some OEMs don't register it properly)
+        if (intent == null) {
+            val launchIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                setPackage(action.packageName)
+            }
+            val resolveInfo = pm.resolveActivity(launchIntent, 0)
+            if (resolveInfo != null) {
+                intent = android.content.Intent().apply {
+                    setClassName(action.packageName, resolveInfo.activityInfo.name)
+                }
+            }
+        }
+
+        // Last fallback: try MAIN without LAUNCHER category
+        if (intent == null) {
+            val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                setPackage(action.packageName)
+            }
+            val activities = pm.queryIntentActivities(mainIntent, 0)
+            if (activities.isNotEmpty()) {
+                intent = android.content.Intent().apply {
+                    setClassName(action.packageName, activities[0].activityInfo.name)
+                }
+            }
+        }
+
+        if (intent == null) {
+            return ActionResult.Error(action, "No launch intent for package '${action.packageName}'")
+        }
+
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
 
         return try {
             context.startActivity(intent)
+            Log.i(TAG, "Launched app: ${action.packageName}")
             ActionResult.Success(action)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch '${action.packageName}': ${e.message}", e)
             ActionResult.Error(action, "Failed to launch '${action.packageName}': ${e.message}", e)
         }
     }
