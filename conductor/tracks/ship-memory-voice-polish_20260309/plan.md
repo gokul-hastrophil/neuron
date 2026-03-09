@@ -62,15 +62,15 @@ Python MCP server exposing Neuron's phone control capabilities over WebSocket.
 
 ### Tasks
 
-- [ ] Task 2.1: Set up Python project structure — `server/mcp/`, FastAPI + uvicorn, dependencies in `requirements.txt`
-- [ ] Task 2.2: Implement MCP tool: `neuron_read_ui_tree` — ADB bridge to capture and return current UI tree JSON
-- [ ] Task 2.3: Implement MCP tool: `neuron_take_screenshot` — ADB screencap → base64 JPEG
-- [ ] Task 2.4: Implement MCP tools: `neuron_tap`, `neuron_type_text`, `neuron_swipe` — ADB input commands
-- [ ] Task 2.5: Implement MCP tool: `neuron_launch_app` — ADB am start with package resolution
-- [ ] Task 2.6: Implement MCP tool: `neuron_run_task` — send natural language command via ADB broadcast to NeuronBrainService
-- [ ] Task 2.7: Add token-based authentication (X-Neuron-Token header)
-- [ ] Task 2.8: Write MCP server setup guide in `docs/api/mcp_guide.md`
-- [ ] Task 2.9: Write pytest tests for MCP tools (mocked ADB, target: 10+ tests)
+- [x] Task 2.1: Set up Python project structure — `server/mcp/`, FastAPI + uvicorn, dependencies in `requirements.txt`
+- [x] Task 2.2: Implement MCP tool: `neuron_read_ui_tree` — ADB bridge to capture and return current UI tree JSON
+- [x] Task 2.3: Implement MCP tool: `neuron_take_screenshot` — ADB screencap → base64 JPEG
+- [x] Task 2.4: Implement MCP tools: `neuron_tap`, `neuron_type_text`, `neuron_swipe` — ADB input commands
+- [x] Task 2.5: Implement MCP tool: `neuron_launch_app` — ADB am start with package resolution
+- [x] Task 2.6: Implement MCP tool: `neuron_run_task` — send natural language command via ADB broadcast to NeuronBrainService
+- [x] Task 2.7: Add token-based authentication (X-Neuron-Token header)
+- [x] Task 2.8: Write MCP server setup guide in `docs/api/mcp_guide.md`
+- [x] Task 2.9: Write pytest tests for MCP tools (mocked ADB, target: 10+ tests)
 
 ### Verification
 
