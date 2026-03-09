@@ -8,6 +8,7 @@ import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
+import ai.neuron.memory.LongTermMemory
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,6 +16,7 @@ import javax.inject.Singleton
 class LLMRouter @Inject constructor(
     private val sensitivityGate: SensitivityGate,
     private val clientManager: LLMClientManager,
+    private val longTermMemory: LongTermMemory,
 ) {
     companion object {
         private val FALLBACK_CHAIN = mapOf(
@@ -64,7 +66,8 @@ class LLMRouter @Inject constructor(
         tier: LLMTier,
     ): NeuronResult<LLMResponse> {
         val systemPrompt = buildSystemPrompt(command)
-        val userMessage = buildUserMessage(command, uiTree)
+        val workflowHint = getWorkflowHint(command, uiTree.packageName)
+        val userMessage = buildUserMessage(command, uiTree, workflowHint)
 
         val result = clientManager.generate(tier, systemPrompt, userMessage)
 
@@ -99,13 +102,33 @@ class LLMRouter @Inject constructor(
         """.trimMargin()
     }
 
-    private fun buildUserMessage(command: String, uiTree: UITree): String {
+    private fun buildUserMessage(command: String, uiTree: UITree, workflowHint: String?): String {
+        val hint = if (workflowHint != null) {
+            "\n|Previous successful workflow: $workflowHint\n|Use this as a hint but verify against the current UI tree.\n|"
+        } else {
+            ""
+        }
         return """Command: $command
             |
             |Current foreground app: ${uiTree.packageName}
-            |
+            |$hint
             |UI Tree:
             |${uiTree.toJson()}
         """.trimMargin()
+    }
+
+    private suspend fun getWorkflowHint(command: String, currentPackage: String): String? {
+        // Try to find a cached workflow matching this command
+        val taskKeyword = command.lowercase().trim()
+            .split("\\s+".toRegex())
+            .filter { it.length > 2 }
+            .take(3)
+            .joinToString("_")
+
+        val workflow = longTermMemory.getCachedWorkflow(currentPackage, taskKeyword)
+        if (workflow != null && workflow.successCount > 0) {
+            return workflow.actionSequenceJson
+        }
+        return null
     }
 }

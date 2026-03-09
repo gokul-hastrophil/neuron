@@ -43,8 +43,8 @@ Persistent memory so Neuron learns user preferences and caches successful workfl
 - [x] Task 1.3: Create `AppWorkflow` entity + DAO — `(id, packageName, taskType, actionSequenceJson, successCount, failCount, avgLatencyMs, lastUsed)`
 - [x] Task 1.4: Create `ContactAssociation` entity + DAO — `(id, displayName, canonicalKey, packageName, lastUsed)`
 - [x] Task 1.5: Implement `LongTermMemory.kt` — unified repository for read/write across all entities
-- [~] Task 1.6: Auto-extract preferences after successful task completion — detect app choices, preferred contacts, common workflows
-- [ ] Task 1.7: Inject cached workflows into LLM prompt context — if a similar task was completed before, include the action sequence as a hint
+- [x] Task 1.6: Auto-extract preferences after successful task completion — detect app choices, preferred contacts, common workflows
+- [x] Task 1.7: Inject cached workflows into LLM prompt context — if a similar task was completed before, include the action sequence as a hint
 - [x] Task 1.8: Write unit tests for Room DAOs and LongTermMemory repository (target: 15+ tests)
 
 ### Verification

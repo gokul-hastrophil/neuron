@@ -10,6 +10,7 @@ import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
+import ai.neuron.memory.LongTermMemory
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -26,6 +27,7 @@ class LLMRouterTest {
     private lateinit var router: LLMRouter
     private lateinit var sensitivityGate: SensitivityGate
     private lateinit var clientManager: LLMClientManager
+    private lateinit var longTermMemory: LongTermMemory
 
     private val normalTree = UITree(
         packageName = "com.whatsapp",
@@ -47,7 +49,8 @@ class LLMRouterTest {
     fun setup() {
         sensitivityGate = SensitivityGate()
         clientManager = mockk()
-        router = LLMRouter(sensitivityGate, clientManager)
+        longTermMemory = mockk(relaxed = true)
+        router = LLMRouter(sensitivityGate, clientManager, longTermMemory)
     }
 
     @Nested
