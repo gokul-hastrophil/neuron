@@ -40,9 +40,10 @@ class SensitivityGate @Inject constructor() {
     }
 
     private fun hasAnySensitiveNode(node: UINode): Boolean {
+        // Password input fields are always sensitive
         if (node.password) return true
-        if (matchesSensitiveText(node.text)) return true
-        if (matchesSensitiveText(node.desc)) return true
+        // Only flag text patterns in editable fields (actual inputs, not labels)
+        if (node.editable && matchesSensitiveText(node.text)) return true
         return node.children.any { hasAnySensitiveNode(it) }
     }
 

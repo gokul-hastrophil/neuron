@@ -12,6 +12,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import ai.neuron.BuildConfig
 import ai.neuron.brain.model.EngineState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -62,17 +63,27 @@ class NeuronBrainService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                commandReceiver,
-                IntentFilter(ACTION_TEXT_COMMAND),
-                RECEIVER_NOT_EXPORTED,
-            )
+            // RECEIVER_EXPORTED is required for ADB broadcasts (debug only).
+            // Release builds keep RECEIVER_NOT_EXPORTED so only in-process callers can reach the receiver.
+            val flag = if (BuildConfig.DEBUG) RECEIVER_EXPORTED else RECEIVER_NOT_EXPORTED
+            registerReceiver(commandReceiver, IntentFilter(ACTION_TEXT_COMMAND), flag)
         } else {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(commandReceiver, IntentFilter(ACTION_TEXT_COMMAND))
         }
 
         Log.d(TAG, "NeuronBrainService started")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val command = intent?.getStringExtra(EXTRA_COMMAND)
+        if (command != null) {
+            Log.d(TAG, "onStartCommand: received command via intent extra: \"$command\"")
+            executeCommand(command)
+        } else {
+            Log.d(TAG, "onStartCommand: no command extra present, ignoring")
+        }
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -85,14 +96,34 @@ class NeuronBrainService : Service() {
     }
 
     fun executeCommand(command: String) {
+        Log.i(TAG, "executeCommand: starting — \"$command\"")
         workingMemory.clear()
         workingMemory.setCurrentTask(command)
 
         serviceScope.launch {
             engine.execute(command).collect { state ->
                 _engineState.value = state
-                Log.d(TAG, "Engine state: $state")
+                logEngineState(command, state)
             }
+        }
+    }
+
+    private fun logEngineState(command: String, state: EngineState) {
+        when (state) {
+            is EngineState.Idle -> Log.d(TAG, "[$command] state=Idle")
+            is EngineState.Planning -> Log.i(TAG, "[$command] state=Planning command=\"${state.command}\"")
+            is EngineState.Executing -> Log.i(
+                TAG,
+                "[$command] state=Executing step=${state.stepIndex} " +
+                    "actionType=${state.action.actionType} target=\"${state.action.targetId}\"",
+            )
+            is EngineState.Verifying -> Log.d(TAG, "[$command] state=Verifying step=${state.stepIndex}")
+            is EngineState.WaitingForUser -> Log.w(TAG, "[$command] state=WaitingForUser reason=\"${state.reason}\"")
+            is EngineState.Done -> Log.i(TAG, "[$command] state=Done result=\"${state.message}\"")
+            is EngineState.Error -> Log.e(
+                TAG,
+                "[$command] state=Error recoverable=${state.recoverable} message=\"${state.message}\"",
+            )
         }
     }
 

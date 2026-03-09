@@ -204,10 +204,10 @@ class LLMRouterTest {
                 suggestedTier = LLMTier.T2,
             )
 
-            // T2 has 2000ms budget
-            assertEquals(2000L, LLMTier.T2.latencyBudgetMs)
+            // T2 has 25000ms budget for Gemini + Ollama Cloud fallback chain
+            assertEquals(25_000L, LLMTier.T2.latencyBudgetMs)
             // T3 has 10000ms budget (Qwen 397B needs more time)
-            assertEquals(10_000L, LLMTier.T3.latencyBudgetMs)
+            assertEquals(30_000L, LLMTier.T3.latencyBudgetMs)
 
             coEvery {
                 clientManager.generate(LLMTier.T2, any(), any())

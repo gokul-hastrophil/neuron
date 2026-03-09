@@ -3,7 +3,7 @@ package ai.neuron.brain.client
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
-import kotlinx.coroutines.delay
+import android.util.Log
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,53 +12,71 @@ import javax.inject.Singleton
 class LLMClientManager @Inject constructor(
     private val geminiClient: GeminiFlashClient,
     private val qwenClient: NvidiaQwenClient,
+    private val openRouterClient: OpenRouterClient,
+    private val ollamaCloudClient: OllamaCloudClient,
 ) {
     companion object {
-        private const val MAX_RETRIES = 3
-        private const val INITIAL_DELAY_MS = 500L
-        private const val BACKOFF_MULTIPLIER = 2.0
+        private const val TAG = "NeuronLLMClientManager"
+        /** Per-provider timeout — each provider gets its own budget, not shared. */
+        private const val PROVIDER_TIMEOUT_MS = 25_000L
     }
 
     suspend fun generate(
         tier: LLMTier,
         systemPrompt: String,
         userMessage: String,
-    ): NeuronResult<LLMResponse> {
-        val timeoutMs = tier.latencyBudgetMs
+    ): NeuronResult<LLMResponse> = when (tier) {
+        LLMTier.T2 -> generateT2WithFallback(systemPrompt, userMessage)
+        LLMTier.T3 -> generateT3WithFallback(systemPrompt, userMessage)
+        else -> NeuronResult.Error("Tier $tier not supported by cloud clients")
+    }
 
-        return withRetry(MAX_RETRIES) {
-            try {
-                withTimeout(timeoutMs) {
-                    when (tier) {
-                        LLMTier.T2 -> geminiClient.generate(systemPrompt, userMessage)
-                        LLMTier.T3 -> qwenClient.generate(systemPrompt, userMessage)
-                        else -> NeuronResult.Error("Tier $tier not supported by cloud clients")
-                    }
-                }
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                NeuronResult.Error("LLM call timed out after ${timeoutMs}ms for tier $tier", e)
-            }
+    /** T2: Gemini (primary, 10s) → Ollama Cloud Qwen3-VL 235B (fallback, 25s). */
+    private suspend fun generateT2WithFallback(
+        systemPrompt: String,
+        userMessage: String,
+    ): NeuronResult<LLMResponse> {
+        // Gemini is fast — give it 10s for the 4-model retry chain
+        val geminiResult = callWithTimeout(10_000L) {
+            geminiClient.generate(systemPrompt, userMessage)
+        }
+        if (geminiResult is NeuronResult.Success) return geminiResult
+        Log.w(TAG, "Gemini failed: ${(geminiResult as NeuronResult.Error).message}, trying Ollama Cloud...")
+
+        // Ollama 235B thinking model needs 15-20s — give it 25s
+        return callWithTimeout(PROVIDER_TIMEOUT_MS) {
+            ollamaCloudClient.generate(systemPrompt, userMessage)
         }
     }
 
-    private suspend fun withRetry(
-        maxRetries: Int,
-        block: suspend () -> NeuronResult<LLMResponse>,
+    /** T3: Ollama Cloud (primary, 25s) → NVIDIA Qwen (fallback, 10s) → OpenRouter (last resort, 15s). */
+    private suspend fun generateT3WithFallback(
+        systemPrompt: String,
+        userMessage: String,
     ): NeuronResult<LLMResponse> {
-        var lastError: NeuronResult.Error? = null
-        var delayMs = INITIAL_DELAY_MS
-
-        repeat(maxRetries) { attempt ->
-            val result = block()
-            if (result is NeuronResult.Success) return result
-
-            lastError = result as NeuronResult.Error
-            if (attempt < maxRetries - 1) {
-                delay(delayMs)
-                delayMs = (delayMs * BACKOFF_MULTIPLIER).toLong()
-            }
+        val ollamaResult = callWithTimeout(PROVIDER_TIMEOUT_MS) {
+            ollamaCloudClient.generate(systemPrompt, userMessage)
         }
+        if (ollamaResult is NeuronResult.Success) return ollamaResult
+        Log.w(TAG, "Ollama Cloud failed: ${(ollamaResult as NeuronResult.Error).message}, trying NVIDIA Qwen...")
 
-        return lastError ?: NeuronResult.Error("All $maxRetries retries exhausted")
+        val qwenResult = callWithTimeout(10_000L) {
+            qwenClient.generate(systemPrompt, userMessage)
+        }
+        if (qwenResult is NeuronResult.Success) return qwenResult
+        Log.w(TAG, "NVIDIA Qwen failed: ${(qwenResult as NeuronResult.Error).message}, trying OpenRouter...")
+
+        return callWithTimeout(15_000L) {
+            openRouterClient.generate(systemPrompt, userMessage)
+        }
+    }
+
+    private suspend fun callWithTimeout(
+        timeoutMs: Long,
+        block: suspend () -> NeuronResult<LLMResponse>,
+    ): NeuronResult<LLMResponse> = try {
+        withTimeout(timeoutMs) { block() }
+    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+        NeuronResult.Error("LLM call timed out after ${timeoutMs}ms", e)
     }
 }

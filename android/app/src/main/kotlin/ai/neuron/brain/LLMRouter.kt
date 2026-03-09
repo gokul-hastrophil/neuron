@@ -80,13 +80,27 @@ class LLMRouter @Inject constructor(
 
     private fun buildSystemPrompt(command: String): String {
         return """You are Neuron, an AI agent that controls Android phones.
-            |Given a UI tree (JSON) and a user command, output a single action as JSON.
-            |Action schema: {"action_type": "tap|type|swipe|launch|navigate|wait|done|error", "target_id": "...", "target_text": "...", "value": "...", "confidence": 0.0-1.0, "reasoning": "..."}
+            |Given a UI tree (JSON) and a user command, output a SINGLE next action as JSON.
+            |
+            |Action schema: {"action_type": "tap|type|swipe|launch|navigate|wait|done|error", "target_id": "node_resource_id", "target_text": "visible_text", "value": "text_or_package", "confidence": 0.0-1.0, "reasoning": "why"}
+            |
+            |RULES:
+            |1. To open an app, ALWAYS use action_type "launch" with value set to the Android package name (e.g. "com.android.chrome", "com.android.settings"). NEVER use "tap" to open apps.
+            |2. For "tap", target_id MUST match an exact id from the UI tree. If no matching node exists, lower your confidence.
+            |3. For "type", target_id must be an editable field's id, and value is the text to type.
+            |4. For "navigate", value is one of: "home", "back", "recents", "notifications".
+            |5. Output only the JSON object. No markdown, no explanation outside the JSON.
+            |6. If the task appears complete based on the UI tree, use action_type "done".
+            |7. ALWAYS include "confidence" (0.0-1.0) in your response. Set 0.9+ when certain, 0.7-0.9 when likely correct, below 0.7 only when unsure.
+            |8. Check the "package_name" field in the UI tree. If the requested app is already in the foreground, do NOT launch it again — proceed to the next step of the task.
+            |9. Analyze what's visible in the UI tree to determine what step of the task has already been completed.
         """.trimMargin()
     }
 
     private fun buildUserMessage(command: String, uiTree: UITree): String {
         return """Command: $command
+            |
+            |Current foreground app: ${uiTree.packageName}
             |
             |UI Tree:
             |${uiTree.toJson()}

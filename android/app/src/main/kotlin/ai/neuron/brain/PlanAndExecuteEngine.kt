@@ -6,6 +6,7 @@ import ai.neuron.brain.model.EngineState
 import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.NeuronResult
 import ai.neuron.brain.model.StepLog
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -23,6 +24,7 @@ class PlanAndExecuteEngine @Inject constructor(
         const val TOTAL_TIMEOUT_MS = 60_000L
         const val CONFIDENCE_THRESHOLD = 0.7
         const val MAX_REPEATED_FAILURES = 3
+        const val UI_SETTLE_DELAY_MS = 800L
     }
 
     interface UIProvider {
@@ -88,7 +90,9 @@ class PlanAndExecuteEngine @Inject constructor(
                             return@flow
                         }
                         else -> {
-                            if (action.confidence < CONFIDENCE_THRESHOLD) {
+                            // confidence=0.0 means not specified by LLM — trust the action
+                            val effectiveConfidence = if (action.confidence == 0.0) 1.0 else action.confidence
+                            if (effectiveConfidence < CONFIDENCE_THRESHOLD) {
                                 logStep(stepIndex, uiTree, routeResult.data.tier, action, false, stepStart)
                                 emit(EngineState.WaitingForUser("Low confidence: ${action.reasoning}"))
                                 return@flow
@@ -122,6 +126,8 @@ class PlanAndExecuteEngine @Inject constructor(
                             }
 
                             emit(EngineState.Verifying(stepIndex))
+                            // Let UI settle after action before re-reading tree
+                            delay(UI_SETTLE_DELAY_MS)
                             stepIndex++
                         }
                     }

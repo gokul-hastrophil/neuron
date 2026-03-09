@@ -137,61 +137,70 @@ class SensitivityGateTest {
     }
 
     @Nested
-    @DisplayName("Sensitive text label detection")
-    inner class SensitiveTextLabels {
+    @DisplayName("Sensitive text in editable fields")
+    inner class SensitiveEditableFields {
 
         @Test
-        fun should_detectSensitive_when_pinTextLabel() {
+        fun should_detectSensitive_when_pinInEditableField() {
             val tree = UITree(
                 packageName = "com.example.app",
-                nodes = listOf(UINode(id = "label", text = "Enter PIN")),
+                nodes = listOf(UINode(id = "pin_input", text = "Enter PIN", editable = true)),
             )
             assertTrue(gate.isSensitive(tree))
         }
 
         @Test
-        fun should_detectSensitive_when_cvvTextLabel() {
+        fun should_detectSensitive_when_cvvInEditableField() {
             val tree = UITree(
                 packageName = "com.example.app",
-                nodes = listOf(UINode(id = "label", text = "CVV")),
+                nodes = listOf(UINode(id = "cvv_input", text = "CVV", editable = true)),
             )
             assertTrue(gate.isSensitive(tree))
         }
 
         @Test
-        fun should_detectSensitive_when_otpTextLabel() {
+        fun should_detectSensitive_when_otpInEditableField() {
             val tree = UITree(
                 packageName = "com.example.app",
-                nodes = listOf(UINode(id = "label", text = "Enter OTP")),
+                nodes = listOf(UINode(id = "otp_input", text = "Enter OTP", editable = true)),
             )
             assertTrue(gate.isSensitive(tree))
         }
 
         @Test
-        fun should_detectSensitive_when_passwordTextLabel() {
+        fun should_detectSensitive_when_passwordInEditableField() {
             val tree = UITree(
                 packageName = "com.example.app",
-                nodes = listOf(UINode(id = "label", text = "Password")),
+                nodes = listOf(UINode(id = "pw_input", text = "Password", editable = true)),
             )
             assertTrue(gate.isSensitive(tree))
         }
 
         @Test
-        fun should_detectSensitive_when_textLabelCaseInsensitive() {
+        fun should_detectSensitive_when_editableFieldCaseInsensitive() {
             val tree = UITree(
                 packageName = "com.example.app",
-                nodes = listOf(UINode(id = "label", text = "enter your otp here")),
+                nodes = listOf(UINode(id = "input", text = "enter your otp here", editable = true)),
             )
             assertTrue(gate.isSensitive(tree))
         }
 
         @Test
-        fun should_detectSensitive_when_sensitiveTextInDescription() {
+        fun should_notDetectSensitive_when_sensitiveTextInNonEditableLabel() {
+            val tree = UITree(
+                packageName = "com.example.app",
+                nodes = listOf(UINode(id = "label", text = "Password & security")),
+            )
+            assertFalse(gate.isSensitive(tree))
+        }
+
+        @Test
+        fun should_notDetectSensitive_when_sensitiveTextInDescription() {
             val tree = UITree(
                 packageName = "com.example.app",
                 nodes = listOf(UINode(id = "field", desc = "PIN input field")),
             )
-            assertTrue(gate.isSensitive(tree))
+            assertFalse(gate.isSensitive(tree))
         }
     }
 

@@ -1,8 +1,10 @@
 package ai.neuron.brain.client
 
 import ai.neuron.BuildConfig
+import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.NeuronResult
+import android.util.Log
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -31,6 +33,7 @@ data class GeminiContent(
 @Serializable
 data class GeminiPart(
     val text: String? = null,
+    val thought: Boolean? = null,
 )
 
 @Serializable
@@ -60,16 +63,28 @@ data class GeminiUsageMetadata(
 )
 
 interface GeminiApi {
-    @POST("v1beta/models/gemini-2.5-flash:generateContent")
+    @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
+        @retrofit2.http.Path("model") model: String,
         @Query("key") apiKey: String,
         @Body body: RequestBody,
-    ): GeminiResponse
+    ): okhttp3.ResponseBody
 }
 
 class GeminiFlashClient(
     private val okHttpClient: OkHttpClient,
 ) {
+    companion object {
+        private const val TAG = "NeuronGemini"
+        /** Ordered list of models to try — separate per-model quotas on free tier. */
+        private val MODEL_CHAIN = listOf(
+            "gemini-2.0-flash",       // Fast, no thinking overhead, good enough for action selection
+            "gemini-2.5-flash",       // Better reasoning, thinking model
+            "gemini-2.5-flash-lite",  // Good balance of speed and capability
+            "gemini-2.0-flash-lite",  // Cheapest, fastest
+        )
+    }
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = false
@@ -90,7 +105,27 @@ class GeminiFlashClient(
         temperature: Double = 0.2,
         maxTokens: Int = 2048,
     ): NeuronResult<LLMResponse> {
+        // Try models in order, fall back on rate limit (429)
+        for (model in MODEL_CHAIN) {
+            val result = generateWithModel(model, systemPrompt, userMessage, temperature, maxTokens)
+            if (result is NeuronResult.Error && result.message.contains("HTTP 429")) {
+                Log.w(TAG, "$model rate-limited, trying next model...")
+                continue
+            }
+            return result
+        }
+        return NeuronResult.Error("All Gemini models rate-limited")
+    }
+
+    private suspend fun generateWithModel(
+        model: String,
+        systemPrompt: String,
+        userMessage: String,
+        temperature: Double,
+        maxTokens: Int,
+    ): NeuronResult<LLMResponse> {
         return try {
+            Log.d(TAG, "Calling Gemini model: $model")
             val request = GeminiRequest(
                 systemInstruction = GeminiContent(
                     parts = listOf(GeminiPart(text = systemPrompt)),
@@ -112,39 +147,91 @@ class GeminiFlashClient(
             val body = requestJson.toRequestBody("application/json".toMediaType())
 
             val startTime = System.currentTimeMillis()
-            val response = api.generateContent(apiKey, body)
+            val rawBody = try {
+                api.generateContent(model, apiKey, body)
+            } catch (e: retrofit2.HttpException) {
+                val latency = System.currentTimeMillis() - startTime
+                val errorBody = e.response()?.errorBody()?.string() ?: "no body"
+                Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
+                return NeuronResult.Error("Gemini API HTTP ${e.code()}: ${errorBody.take(200)}", e)
+            }
             val latency = System.currentTimeMillis() - startTime
 
-            val text = response.candidates
-                ?.firstOrNull()
-                ?.content
-                ?.parts
-                ?.firstOrNull()
-                ?.text
-                ?: return NeuronResult.Error("Empty response from Gemini")
+            val responseJson = rawBody.string()
+            Log.d(TAG, "$model raw response (${responseJson.length} chars, ${latency}ms)")
+            val response = json.decodeFromString(GeminiResponse.serializer(), responseJson)
 
-            val llmResponse = try {
-                LLMResponse.fromJson(text)
-            } catch (e: Exception) {
-                // If the response isn't a valid LLMResponse JSON, wrap the raw text
-                LLMResponse(
-                    tier = "T2",
-                    modelId = "gemini-2.5-flash",
-                    latencyMs = latency,
-                    tokensUsed = response.usageMetadata?.totalTokenCount,
-                )
+            val parts = response.candidates?.firstOrNull()?.content?.parts
+            Log.d(TAG, "$model parts count: ${parts?.size}, thought parts: ${parts?.count { it.thought == true }}")
+
+            // Gemini 2.5 Flash is a thinking model — skip thought parts, take the actual response
+            val text = parts
+                ?.lastOrNull { it.thought != true }
+                ?.text
+                ?: parts?.lastOrNull()?.text
+                ?: return NeuronResult.Error("Empty response from Gemini $model")
+
+            Log.d(TAG, "$model extracted text (${text.length} chars): ${text.take(300)}")
+
+            val llmResponse = parseAsLLMResponse(text)
+            if (llmResponse == null) {
+                Log.w(TAG, "parseAsLLMResponse returned null for: ${text.take(500)}")
+                return NeuronResult.Error("Failed to parse Gemini response as action JSON: ${text.take(200)}")
             }
 
-            NeuronResult.Success(
-                llmResponse.copy(
-                    tier = "T2",
-                    modelId = "gemini-2.5-flash",
-                    latencyMs = latency,
-                    tokensUsed = response.usageMetadata?.totalTokenCount,
-                ),
+            val finalResponse = llmResponse.copy(
+                tier = "T2",
+                modelId = model,
+                latencyMs = latency,
+                tokensUsed = response.usageMetadata?.totalTokenCount,
             )
+            Log.d(TAG, "$model success: action=${finalResponse.action?.actionType}, target=${finalResponse.action?.targetId}, value=${finalResponse.action?.value}")
+            NeuronResult.Success(finalResponse)
         } catch (e: Exception) {
-            NeuronResult.Error("Gemini Flash API call failed: ${e.message}", e)
+            Log.e(TAG, "$model exception: ${e.javaClass.simpleName}: ${e.message}")
+            NeuronResult.Error("Gemini $model API call failed: ${e.message}", e)
         }
+    }
+
+    /**
+     * Try parsing as LLMResponse first; if the result has no action,
+     * try parsing as a raw LLMAction and wrap it.
+     * Handles markdown code fences and thinking model artifacts.
+     */
+    private fun parseAsLLMResponse(text: String): LLMResponse? {
+        val cleaned = stripMarkdownFences(text).trim()
+        Log.d(TAG, "Parsing cleaned text (${cleaned.length} chars): ${cleaned.take(200)}")
+
+        // Try as wrapped LLMResponse
+        try {
+            val resp = LLMResponse.fromJson(cleaned)
+            if (resp.action != null) {
+                Log.d(TAG, "Parsed as LLMResponse with action: ${resp.action.actionType}")
+                return resp
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Not an LLMResponse: ${e.message?.take(100)}")
+        }
+
+        // Try as bare LLMAction
+        try {
+            val action = json.decodeFromString(LLMAction.serializer(), cleaned)
+            Log.d(TAG, "Parsed as bare LLMAction: ${action.actionType}")
+            return LLMResponse(action = action)
+        } catch (e: Exception) {
+            Log.d(TAG, "Not an LLMAction either: ${e.message?.take(100)}")
+        }
+
+        return null
+    }
+
+    /** Strip ```json ... ``` or ``` ... ``` code fences if present. */
+    private fun stripMarkdownFences(text: String): String {
+        val trimmed = text.trim()
+        if (!trimmed.startsWith("```")) return trimmed
+        val lines = trimmed.lines()
+        val start = if (lines.first().startsWith("```")) 1 else 0
+        val end = if (lines.last().trim() == "```") lines.size - 1 else lines.size
+        return lines.subList(start, end).joinToString("\n")
     }
 }
