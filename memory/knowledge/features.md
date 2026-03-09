@@ -29,3 +29,38 @@ Format: `### [YYYY-MM-DD] — [Feature Name]`
 **Gotchas**: LLMs return generic AOSP package names (com.android.calculator2) that don't exist on OEM devices (Honor uses com.hihonor.calculator). Must always verify against actual device.
 
 ---
+
+### 2026-03-09 — Intent-Based App Resolution
+**Approach**: 4-step chain: KNOWN_APPS → package validation → fuzzy label → intent-based. Intent fallback maps keywords (call, photo, alarm, browser) to standard Android actions (ACTION_DIAL, ACTION_IMAGE_CAPTURE).
+**Files**: `AppResolver.kt` (new, extracted from BrainModule), `AppResolverTest.kt` (25 tests)
+**Gotchas**: Android Intent stubs don't store action/data in JVM tests — test keyword matching separately from PM resolution.
+
+---
+
+### 2026-03-09 — Room DB Long-Term Memory
+**Approach**: 3 entities (UserPreference, AppWorkflow, ContactAssociation) with Room DAOs. LongTermMemory repository with upsert logic. MemoryExtractor auto-captures preferences after LAUNCH actions and serializes action sequences.
+**Files**: `memory/{NeuronDatabase,LongTermMemory,MemoryExtractor}.kt`, `entity/*.kt`, `dao/*.kt`, `di/MemoryModule.kt`
+**Gotchas**: Room needs KSP `room.schemaLocation` arg. Use `fallbackToDestructiveMigration()` for alpha phase.
+
+---
+
+### 2026-03-09 — SDK Tool Registry + LLM Prompt Injection
+**Approach**: NeuronTool data class + ToolRegistry in-memory map. ToolRegistry.toPromptSnippet() appended to LLM system prompt. New TOOL_CALL action type for LLM to invoke tools. ActionDispatcher intercepts tool_call before AccessibilityService.
+**Files**: `sdk/{NeuronTool,ToolRegistry,NeuronSDK,AppFunctionsBridge}.kt`, `LLMRouter.kt`, `BrainModule.kt`, `LLMResponse.kt`
+**Gotchas**: TOOL_CALL must be added to every exhaustive `when` on ActionType (ActionMapper, BrainModule mapToNeuronAction).
+
+---
+
+### 2026-03-09 — Voice Input + Confirmation Gate
+**Approach**: SpeechRecognitionManager wraps Android SpeechRecognizer with state machine (IDLE→LISTENING→PROCESSING→IDLE/ERROR). VoiceInputController bridges speech→overlay for hold-to-speak. ConfirmationGate checks dangerous keywords + low confidence + sensitive flag.
+**Files**: `input/{SpeechRecognitionManager,VoiceInputController}.kt`, `ConfirmationGate.kt`, `OverlayManager.kt` (LISTENING state added)
+**Gotchas**: SpeechRecognizer must be created and used on main thread. RmsDb exposed via StateFlow for waveform visualization.
+
+---
+
+### 2026-03-09 — Onboarding + Settings UI
+**Approach**: Compose-only screens. OnboardingScreen: 4-step wizard with permissions explanation card. SettingsScreen: API key fields (PasswordVisualTransformation), cloud toggle, memory clear dialog. AuditLogScreen: LazyColumn of timestamped entries.
+**Files**: `ui/{MainScreen,onboarding/OnboardingScreen,settings/SettingsScreen,audit/AuditLogScreen}.kt`, `MainActivity.kt` (rewired with navigation)
+**Gotchas**: SharedPreferences for settings persistence (simple, no DataStore needed for alpha). Screen navigation via simple string state, not NavHost (minimal for now).
+
+---

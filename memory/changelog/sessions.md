@@ -118,3 +118,30 @@ Format: `### [YYYY-MM-DD] — [Session Title]`
 - Week 3 planning
 
 ---
+
+### 2026-03-09 — Week 3 Ship: Phases 0-6 Implementation (45/48 tasks)
+**Work done**:
+- **Phase 0 (Integration Fixes)**: Intent-based app resolution, NAVIGATE enter/submit, NAVIGATE notifications, PressKey action
+- **Phase 1 (Long-Term Memory)**: Room DB with 3 entities (UserPreference, AppWorkflow, ContactAssociation), LongTermMemory repository, MemoryExtractor auto-capture, workflow hints in LLM prompts
+- **Phase 2 (MCP Server)**: 14 pytest tests for existing MCP server, setup guide
+- **Phase 3 (SDK)**: NeuronSDK, ToolRegistry, AppFunctionsBridge stub, tool_call action type, ToolRegistry injected into LLM system prompt, 12 SDK tests
+- **Phase 4 (Voice + Overlay)**: SpeechRecognitionManager state machine, VoiceInputController hold-to-speak, ConfirmationGate for irreversible actions, LISTENING overlay state, 28 new tests
+- **Phase 5 (UI Polish)**: OnboardingScreen 4-step wizard, SettingsScreen with API keys + privacy, AuditLogScreen, MainScreen hub, ProGuard rules
+- **Phase 6 (Release Prep)**: Signing config, install guide, README SDK example update
+- Total: 153 unit tests passing, 10 commits
+
+**Key files created**:
+- `android/.../AppResolver.kt`, `ActionMapper.kt`, `ConfirmationGate.kt`
+- `android/.../memory/{NeuronDatabase,LongTermMemory,MemoryExtractor}.kt` + entities + DAOs
+- `android/.../input/{SpeechRecognitionManager,VoiceInputController}.kt`
+- `android/.../sdk/{NeuronSDK,ToolRegistry,NeuronTool,AppFunctionsBridge}.kt`
+- `android/.../ui/{MainScreen,onboarding/OnboardingScreen,settings/SettingsScreen,audit/AuditLogScreen}.kt`
+- `docs/onboarding/{install.md,sdk_quickstart.md}`, `docs/api/mcp_guide.md`
+
+**Remaining (3 tasks, all require physical device)**:
+- Task 0.5: Re-run 16-test benchmark on device
+- Task 6.1/6.2: Final benchmark + bug fixes
+- Task 6.4: GitHub Release upload
+- Task 6.8: 1-hour soak test
+
+---
