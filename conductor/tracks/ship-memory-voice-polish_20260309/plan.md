@@ -21,7 +21,7 @@ Fix the 3 specific failures identified in the 16-test integration benchmark (ITR
 - [x] Task 0.2: Add "press Enter to submit" hint to system prompt — when the LLM types text in a search/URL bar, the prompt should instruct it to submit via NAVIGATE ENTER or TAP on a suggestion, preventing the TYPE-repeat loop
 - [x] Task 0.3: Add NAVIGATE NOTIFICATIONS action mapping — map SWIPE DOWN from top / "open notifications" commands to AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
 - [x] Task 0.4: Add NAVIGATE ENTER key action — map "press enter" / "submit" to InputConnection dispatch of KEYCODE_ENTER for search bar submission
-- [ ] Task 0.5: Re-run 16-test benchmark on device and verify >70% pass rate
+- [ ] Task 0.5: Re-run 16-test benchmark on device and verify >70% pass rate (requires ADB device)
 
 ### Verification
 
@@ -38,14 +38,14 @@ Persistent memory so Neuron learns user preferences and caches successful workfl
 
 ### Tasks
 
-- [ ] Task 1.1: Set up Room DB with `NeuronDatabase`, migration strategy, and Hilt integration
-- [ ] Task 1.2: Create `UserPreference` entity + DAO — `(id, category, key, value, confidence, updatedAt)`
-- [ ] Task 1.3: Create `AppWorkflow` entity + DAO — `(id, packageName, taskType, actionSequenceJson, successCount, failCount, avgLatencyMs, lastUsed)`
-- [ ] Task 1.4: Create `ContactAssociation` entity + DAO — `(id, displayName, canonicalKey, packageName, lastUsed)`
-- [ ] Task 1.5: Implement `LongTermMemory.kt` — unified repository for read/write across all entities
-- [ ] Task 1.6: Auto-extract preferences after successful task completion — detect app choices, preferred contacts, common workflows
+- [x] Task 1.1: Set up Room DB with `NeuronDatabase`, migration strategy, and Hilt integration
+- [x] Task 1.2: Create `UserPreference` entity + DAO — `(id, category, key, value, confidence, updatedAt)`
+- [x] Task 1.3: Create `AppWorkflow` entity + DAO — `(id, packageName, taskType, actionSequenceJson, successCount, failCount, avgLatencyMs, lastUsed)`
+- [x] Task 1.4: Create `ContactAssociation` entity + DAO — `(id, displayName, canonicalKey, packageName, lastUsed)`
+- [x] Task 1.5: Implement `LongTermMemory.kt` — unified repository for read/write across all entities
+- [~] Task 1.6: Auto-extract preferences after successful task completion — detect app choices, preferred contacts, common workflows
 - [ ] Task 1.7: Inject cached workflows into LLM prompt context — if a similar task was completed before, include the action sequence as a hint
-- [ ] Task 1.8: Write unit tests for Room DAOs and LongTermMemory repository (target: 15+ tests)
+- [x] Task 1.8: Write unit tests for Room DAOs and LongTermMemory repository (target: 15+ tests)
 
 ### Verification
 
