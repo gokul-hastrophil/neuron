@@ -114,10 +114,11 @@ class SpeechRecognitionManager @Inject constructor() {
     }
 
     fun stopListening() {
+        // Only signal the recognizer to stop — don't destroy it.
+        // The onResults/onError callback will fire asynchronously and
+        // call onFinalResult() or onError(), which transitions state to IDLE/ERROR.
+        // Destroying here would race with those callbacks.
         speechRecognizer?.stopListening()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
-        onRecognitionStopped()
     }
 
     fun cancel() {
@@ -153,11 +154,18 @@ class SpeechRecognitionManager @Inject constructor() {
         _finalText.value = text
         _partialText.value = ""
         _state.value = State.IDLE
+        destroyRecognizer()
     }
 
     internal fun onError(message: String) {
         _errorMessage.value = message
         _state.value = State.ERROR
+        destroyRecognizer()
+    }
+
+    private fun destroyRecognizer() {
+        speechRecognizer?.destroy()
+        speechRecognizer = null
     }
 
     private fun mapErrorCode(error: Int): String = when (error) {

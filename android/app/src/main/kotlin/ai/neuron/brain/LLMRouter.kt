@@ -38,9 +38,30 @@ class LLMRouter @Inject constructor(
         }
 
         return when (effectiveTier) {
-            LLMTier.T0, LLMTier.T1, LLMTier.T4 -> handleOnDevice(command, uiTree, effectiveTier)
+            LLMTier.T4 -> handleSensitive(command, tier = effectiveTier)
+            LLMTier.T0, LLMTier.T1 -> handleOnDevice(command, uiTree, effectiveTier)
             LLMTier.T2, LLMTier.T3 -> handleCloud(command, uiTree, effectiveTier)
         }
+    }
+
+    private fun handleSensitive(
+        command: String,
+        tier: LLMTier,
+    ): NeuronResult<LLMResponse> {
+        // T4: sensitive context — NEVER send to cloud. On-device only.
+        // Pattern match what we can; otherwise block with explanation.
+        val patternAction = matchCommandPattern(command)
+        return NeuronResult.Success(
+            LLMResponse(
+                action = patternAction ?: LLMAction(
+                    actionType = ActionType.DONE,
+                    reasoning = "Sensitive context detected — on-device processing only (Gemma 3n not yet available)",
+                    confidence = 0.5,
+                ),
+                tier = tier.name,
+                modelId = "on-device",
+            ),
+        )
     }
 
     private suspend fun handleOnDevice(
@@ -48,18 +69,52 @@ class LLMRouter @Inject constructor(
         uiTree: UITree,
         tier: LLMTier,
     ): NeuronResult<LLMResponse> {
-        // On-device LLM (Gemma 3n) — placeholder until MediaPipe integration
-        return NeuronResult.Success(
-            LLMResponse(
-                action = LLMAction(
-                    actionType = ActionType.DONE,
-                    reasoning = "On-device processing for tier $tier",
-                    confidence = 0.5,
+        // Try deterministic pattern matching first (fast, no LLM needed)
+        val patternAction = matchCommandPattern(command)
+        if (patternAction != null) {
+            return NeuronResult.Success(
+                LLMResponse(
+                    action = patternAction,
+                    tier = tier.name,
+                    modelId = "pattern-match",
                 ),
-                tier = tier.name,
-                modelId = tier.modelId,
-            ),
-        )
+            )
+        }
+
+        // T1 (Gemma 3n) not yet integrated — fall through to T2 cloud
+        return handleCloud(command, uiTree, LLMTier.T2)
+    }
+
+    private fun matchCommandPattern(command: String): LLMAction? {
+        val cmd = command.trim().lowercase()
+
+        // "open <app>" → LAUNCH
+        val openMatch = Regex("^(?:open|launch|start)\\s+(.+)$").find(cmd)
+        if (openMatch != null) {
+            val appName = openMatch.groupValues[1].trim()
+            return LLMAction(
+                actionType = ActionType.LAUNCH,
+                value = appName,
+                reasoning = "Launching $appName",
+                confidence = 0.95,
+            )
+        }
+
+        // "go home" / "go back"
+        if (cmd == "go home" || cmd == "home") {
+            return LLMAction(actionType = ActionType.NAVIGATE, value = "home", reasoning = "Going home", confidence = 1.0)
+        }
+        if (cmd == "go back" || cmd == "back") {
+            return LLMAction(actionType = ActionType.NAVIGATE, value = "back", reasoning = "Going back", confidence = 1.0)
+        }
+        if (cmd == "recents" || cmd == "show recents" || cmd == "open recents") {
+            return LLMAction(actionType = ActionType.NAVIGATE, value = "recents", reasoning = "Opening recents", confidence = 1.0)
+        }
+        if (cmd == "notifications" || cmd == "show notifications" || cmd == "open notifications") {
+            return LLMAction(actionType = ActionType.NAVIGATE, value = "notifications", reasoning = "Opening notifications", confidence = 1.0)
+        }
+
+        return null
     }
 
     private suspend fun handleCloud(
