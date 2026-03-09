@@ -145,3 +145,29 @@ Format: `### [YYYY-MM-DD] — [Session Title]`
 - Task 6.8: 1-hour soak test
 
 ---
+
+### 2026-03-10 — Voice Pipeline Polish, Wake Word, GitHub Release
+**Work done**:
+- **Wake word detection**: Created `WakeWordService.kt` wrapping Porcupine SDK — configurable keyword (default JARVIS), 0.7 sensitivity, auto-starts on accessibility service connect
+- **Wake word settings**: Added Picovoice access key field, keyword selector dropdown (all built-in keywords), enable/disable toggle to SettingsScreen
+- **Wiring**: NeuronAccessibilityService reads picovoice_access_key from prefs, starts WakeWordService on connect, wake detection triggers voice input flow with 5s auto-timeout
+- **GitHub Release**: Created v0.1.0-alpha release with debug APK at https://github.com/gokul-hastrophil/neuron/releases/tag/v0.1.0-alpha
+- **Benchmark script**: Created `scripts/run_benchmark.sh` — automated 16-test runner via ADB broadcast with pass/fail/partial tracking
+- **CHANGELOG**: Full v0.1.0-alpha changelog with all features and fixes
+- Task 6.4 complete (46/48 tasks)
+
+**Key files created/modified**:
+- `android/.../input/WakeWordService.kt` (new)
+- `android/.../accessibility/NeuronAccessibilityService.kt` (wake word wiring)
+- `android/.../ui/settings/SettingsScreen.kt` (wake word section)
+- `android/.../ui/MainActivity.kt` (load/save new settings)
+- `scripts/run_benchmark.sh` (new)
+- `CHANGELOG.md` (v0.1.0-alpha)
+
+**Remaining (4 tasks, all require physical device)**:
+- Task 0.5: Re-run 16-test benchmark on device
+- Task 6.1: Final benchmark run
+- Task 6.2: Fix critical bugs from benchmark
+- Task 6.8: 1-hour soak test
+
+---
