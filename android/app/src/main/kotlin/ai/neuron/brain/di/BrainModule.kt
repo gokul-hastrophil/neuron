@@ -9,6 +9,7 @@ import ai.neuron.accessibility.model.NeuronAction
 import ai.neuron.accessibility.model.ActionResult
 import ai.neuron.accessibility.model.ScrollDirection
 import ai.neuron.accessibility.model.UITree
+import ai.neuron.brain.AppResolver
 import ai.neuron.brain.PlanAndExecuteEngine
 import ai.neuron.brain.client.GeminiFlashClient
 import ai.neuron.brain.client.NvidiaQwenClient
@@ -97,6 +98,7 @@ object BrainModule {
     @Singleton
     fun provideActionDispatcher(
         @ApplicationContext context: Context,
+        appResolver: AppResolver,
     ): PlanAndExecuteEngine.ActionDispatcher =
         object : PlanAndExecuteEngine.ActionDispatcher {
             override suspend fun dispatch(action: LLMAction): Boolean =
@@ -106,7 +108,7 @@ object BrainModule {
                         Log.w(TAG, "ActionDispatcher: AccessibilityService not active, dropping action ${action.actionType}")
                         return@withContext false
                     }
-                    val neuronAction = mapToNeuronAction(action, context.packageManager)
+                    val neuronAction = mapToNeuronAction(action, context.packageManager, appResolver)
                     if (neuronAction == null) {
                         Log.w(TAG, "ActionDispatcher: no NeuronAction mapping for ${action.actionType}, dropping")
                         return@withContext false
@@ -119,58 +121,7 @@ object BrainModule {
                 }
         }
 
-    private val KNOWN_APPS = mapOf(
-        "settings" to "com.android.settings",
-        "chrome" to "com.android.chrome",
-        "whatsapp" to "com.whatsapp",
-        "messages" to "com.google.android.apps.messaging",
-        "phone" to "com.google.android.dialer",
-        "dialer" to "com.google.android.dialer",
-        "phone dialer" to "com.google.android.dialer",
-        "camera" to "com.android.camera",
-        "calculator" to "com.google.android.calculator",
-        "clock" to "com.google.android.deskclock",
-        "gmail" to "com.google.android.gm",
-        "maps" to "com.google.android.apps.maps",
-        "youtube" to "com.google.android.youtube",
-        "play store" to "com.android.vending",
-        "files" to "com.google.android.apps.nbu.files",
-        "photos" to "com.google.android.apps.photos",
-        "contacts" to "com.google.android.contacts",
-        "calendar" to "com.google.android.calendar",
-    )
-
-    private fun resolvePackageName(value: String, pm: PackageManager): String? {
-        // Try known apps map first (case-insensitive)
-        val lower = value.lowercase().trim()
-        KNOWN_APPS[lower]?.let { return it }
-
-        // If it looks like a package name (contains dot), verify it's launchable
-        if ('.' in value) {
-            if (pm.getLaunchIntentForPackage(value) != null) return value
-            Log.w(TAG, "Package '$value' not launchable, trying label lookup...")
-        }
-
-        // Fuzzy match: search installed apps by label
-        val searchTerm = value.replace("com.android.", "").replace("com.google.", "")
-        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-        for (app in apps) {
-            val label = pm.getApplicationLabel(app).toString()
-            if (label.equals(lower, ignoreCase = true) || label.equals(searchTerm, ignoreCase = true)) {
-                return app.packageName
-            }
-        }
-        // Partial match as last resort
-        for (app in apps) {
-            val label = pm.getApplicationLabel(app).toString().lowercase()
-            if (label.contains(lower) || lower.contains(label)) {
-                return app.packageName
-            }
-        }
-        return null
-    }
-
-    private fun mapToNeuronAction(action: LLMAction, pm: PackageManager): NeuronAction? =
+    private fun mapToNeuronAction(action: LLMAction, pm: PackageManager, appResolver: AppResolver): NeuronAction? =
         when (action.actionType) {
             ActionType.TAP -> {
                 val nodeId = action.targetId ?: return null
@@ -192,7 +143,7 @@ object BrainModule {
             }
             ActionType.LAUNCH -> {
                 val value = action.value ?: return null
-                val packageName = resolvePackageName(value, pm) ?: run {
+                val packageName = appResolver.resolve(value, pm) ?: run {
                     Log.w(TAG, "ActionDispatcher: could not resolve app '$value' to package name")
                     return null
                 }
