@@ -103,21 +103,25 @@ Then in Claude: *"Take a screenshot of my phone"* or *"Open WhatsApp and send Jo
 
 ### Neuron SDK (Kotlin)
 
-Register custom tools that Neuron's brain can use:
+Register custom tools that Neuron's AI brain can discover and invoke:
 
 ```kotlin
-NeuronSDK.registerTool(
-    name = "book_cab",
-    description = "Book a cab using Uber",
-    params = listOf(
-        NeuronParam("destination", "Where to go"),
-        NeuronParam("time", "When (now or specific time)")
+neuronSDK.init()
+neuronSDK.registerTool(
+    NeuronTool(
+        name = "book_cab",
+        description = "Book a cab using Uber",
+        parameters = mapOf("destination" to "string", "time" to "string"),
+        execute = { params ->
+            val dest = params["destination"] ?: "home"
+            bookUberTo(dest)  // your implementation
+            "Cab booked to $dest"
+        }
     )
-) { params ->
-    // Your implementation
-    NeuronResult.Success("Cab booked to ${params["destination"]}")
-}
+)
 ```
+
+See [SDK Quickstart](docs/onboarding/sdk_quickstart.md) for full guide.
 
 ---
 

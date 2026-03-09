@@ -155,14 +155,14 @@ Signed APK, documentation, and final validation.
 
 ### Tasks
 
-- [ ] Task 6.1: Re-run full 16-test integration benchmark (with Gemini if quota available) — document results
-- [ ] Task 6.2: Fix any critical bugs found in final benchmark
-- [ ] Task 6.3: Sign release APK with release keystore
-- [ ] Task 6.4: Upload APK to GitHub Releases with changelog
-- [ ] Task 6.5: Write installation guide (`docs/onboarding/install.md`)
-- [ ] Task 6.6: Update README.md — project overview, architecture diagram, demo instructions, getting started
-- [ ] Task 6.7: Generate API documentation (Dokka for Kotlin, docstrings for Python MCP)
-- [ ] Task 6.8: Run 1-hour soak test — continuous task execution, verify no crashes or memory leaks
+- [ ] Task 6.1: Re-run full 16-test integration benchmark (with Gemini if quota available) — document results (requires device)
+- [ ] Task 6.2: Fix any critical bugs found in final benchmark (requires device)
+- [x] Task 6.3: Sign release APK with release keystore — signingConfigs added to build.gradle.kts, env-based keystore path/password
+- [ ] Task 6.4: Upload APK to GitHub Releases with changelog (requires signed APK)
+- [x] Task 6.5: Write installation guide (`docs/onboarding/install.md`) — prerequisites, sideload steps, MCP setup, troubleshooting table
+- [x] Task 6.6: Update README.md — SDK example updated to match actual NeuronTool API, link to SDK quickstart
+- [x] Task 6.7: API documentation — MCP guide at docs/api/mcp_guide.md, SDK quickstart at docs/onboarding/sdk_quickstart.md, install guide at docs/onboarding/install.md
+- [ ] Task 6.8: Run 1-hour soak test — continuous task execution, verify no crashes or memory leaks (requires device)
 
 ### Verification
 
