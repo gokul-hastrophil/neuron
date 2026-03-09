@@ -35,6 +35,7 @@ object ActionMapper {
             ActionType.CONFIRM,
             ActionType.WAIT,
             ActionType.LAUNCH,
+            ActionType.TOOL_CALL,
             -> null
         }
 

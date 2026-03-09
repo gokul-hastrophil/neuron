@@ -17,6 +17,7 @@ import ai.neuron.brain.client.OllamaCloudClient
 import ai.neuron.brain.client.OpenRouterClient
 import ai.neuron.brain.model.ActionType
 import ai.neuron.brain.model.LLMAction
+import ai.neuron.sdk.ToolRegistry
 import android.content.Context
 import android.util.Log
 import android.content.pm.PackageManager
@@ -99,10 +100,29 @@ object BrainModule {
     fun provideActionDispatcher(
         @ApplicationContext context: Context,
         appResolver: AppResolver,
+        toolRegistry: ToolRegistry,
     ): PlanAndExecuteEngine.ActionDispatcher =
         object : PlanAndExecuteEngine.ActionDispatcher {
             override suspend fun dispatch(action: LLMAction): Boolean =
                 withContext(Dispatchers.Default) {
+                    // Handle tool_call actions via ToolRegistry (no AccessibilityService needed)
+                    if (action.actionType == ActionType.TOOL_CALL) {
+                        val toolName = action.value ?: return@withContext false
+                        val paramsJson = action.targetText ?: "{}"
+                        val params = try {
+                            kotlinx.serialization.json.Json.decodeFromString<Map<String, String>>(paramsJson)
+                        } catch (e: Exception) {
+                            emptyMap()
+                        }
+                        val result = toolRegistry.invoke(toolName, params)
+                        if (result == null) {
+                            Log.w(TAG, "ActionDispatcher: tool '$toolName' not found in registry")
+                            return@withContext false
+                        }
+                        Log.i(TAG, "ActionDispatcher: tool '$toolName' returned: $result")
+                        return@withContext true
+                    }
+
                     val service = NeuronAccessibilityService.instance
                     if (service == null) {
                         Log.w(TAG, "ActionDispatcher: AccessibilityService not active, dropping action ${action.actionType}")
@@ -155,6 +175,7 @@ object BrainModule {
             ActionType.ERROR,
             ActionType.CONFIRM,
             ActionType.WAIT,
+            ActionType.TOOL_CALL,
             -> null
         }
 

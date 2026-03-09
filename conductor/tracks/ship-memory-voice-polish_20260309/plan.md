@@ -87,12 +87,12 @@ Public API for developers to register custom tools that Neuron's brain can invok
 
 ### Tasks
 
-- [ ] Task 3.1: Implement `NeuronSDK.kt` — public API: `init()`, `registerTool()`, `unregisterTool()`, `listTools()`
-- [ ] Task 3.2: Implement `ToolRegistry.kt` — in-memory registry with tool name, description, parameter schema, and execute callback
-- [ ] Task 3.3: Inject registered tools into LLM system prompt — planner sees all available tools and can invoke them
-- [ ] Task 3.4: Implement `AppFunctionsBridge.kt` — query AppFunctionsManager for installed app capabilities, index into ToolRegistry
-- [ ] Task 3.5: Write SDK quick-start guide in `docs/onboarding/sdk_quickstart.md`
-- [ ] Task 3.6: Write unit tests for ToolRegistry (register, unregister, invoke, duplicate detection — target: 8+ tests)
+- [x] Task 3.1: Implement `NeuronSDK.kt` — public API: `init()`, `registerTool()`, `unregisterTool()`, `listTools()`
+- [x] Task 3.2: Implement `ToolRegistry.kt` — in-memory registry with tool name, description, parameter schema, and execute callback
+- [x] Task 3.3: Inject registered tools into LLM system prompt — planner sees all available tools and can invoke them
+- [x] Task 3.4: Implement `AppFunctionsBridge.kt` — query AppFunctionsManager for installed app capabilities, index into ToolRegistry
+- [x] Task 3.5: Write SDK quick-start guide in `docs/onboarding/sdk_quickstart.md`
+- [x] Task 3.6: Write unit tests for ToolRegistry (register, unregister, invoke, duplicate detection — target: 8+ tests)
 
 ### Verification
 
