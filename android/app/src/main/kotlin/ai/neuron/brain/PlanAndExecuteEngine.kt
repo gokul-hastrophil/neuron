@@ -6,6 +6,7 @@ import ai.neuron.brain.model.EngineState
 import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.NeuronResult
 import ai.neuron.brain.model.StepLog
+import ai.neuron.memory.MemoryExtractor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -18,6 +19,7 @@ class PlanAndExecuteEngine @Inject constructor(
     private val classifier: IntentClassifier,
     private val uiProvider: UIProvider,
     private val actionDispatcher: ActionDispatcher,
+    private val memoryExtractor: MemoryExtractor,
 ) {
     companion object {
         const val MAX_STEPS = 20
@@ -76,6 +78,8 @@ class PlanAndExecuteEngine @Inject constructor(
                     when (action.actionType) {
                         ActionType.DONE -> {
                             logStep(stepIndex, uiTree, routeResult.data.tier, action, true, stepStart)
+                            val totalDuration = System.currentTimeMillis() - startTime
+                            memoryExtractor.extractFromCompletedTask(command, _stepLogs, totalDuration)
                             emit(EngineState.Done(action.reasoning ?: "Task completed"))
                             return@flow
                         }

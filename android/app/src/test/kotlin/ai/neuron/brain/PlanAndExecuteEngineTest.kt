@@ -10,6 +10,7 @@ import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
+import ai.neuron.memory.MemoryExtractor
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -29,6 +30,7 @@ class PlanAndExecuteEngineTest {
     private lateinit var classifier: IntentClassifier
     private lateinit var uiProvider: PlanAndExecuteEngine.UIProvider
     private lateinit var actionDispatcher: PlanAndExecuteEngine.ActionDispatcher
+    private lateinit var memoryExtractor: MemoryExtractor
 
     private val normalTree = UITree(
         packageName = "com.whatsapp",
@@ -51,7 +53,8 @@ class PlanAndExecuteEngineTest {
         coEvery { uiProvider.getCurrentUITree() } returns normalTree
         coEvery { actionDispatcher.dispatch(any()) } returns true
 
-        engine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher)
+        memoryExtractor = mockk(relaxed = true)
+        engine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor)
     }
 
     @Nested
