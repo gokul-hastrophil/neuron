@@ -38,6 +38,7 @@ android {
         buildConfigField("String", "NVIDIA_API_KEY", "\"${apiKey("NVIDIA_API_KEY")}\"")
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${apiKey("OPENROUTER_API_KEY")}\"")
         buildConfigField("String", "OLLAMA_API_KEY", "\"${apiKey("OLLAMA_API_KEY")}\"")
+        buildConfigField("String", "PICOVOICE_ACCESS_KEY", "\"${apiKey("PICOVOICE_ACCESS_KEY")}\"")
     }
 
     signingConfigs {
@@ -132,6 +133,9 @@ dependencies {
 
     // Serialization
     implementation(libs.serialization.json)
+
+    // Wake word detection
+    implementation("ai.picovoice:porcupine-android:3.0.3")
 
     // Testing
     testImplementation(libs.junit5.api)

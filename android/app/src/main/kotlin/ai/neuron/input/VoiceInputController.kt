@@ -52,7 +52,10 @@ class VoiceInputController @Inject constructor(
                         val finalResult = speechManager.finalText.value
                         if (finalResult != null) {
                             Log.i(TAG, "Voice command ready: $finalResult")
+                            overlayManager.updateState(OverlayManager.OverlayState.THINKING)
                             onCommandReady?.invoke(finalResult)
+                        } else {
+                            overlayManager.updateState(OverlayManager.OverlayState.IDLE)
                         }
                     }
                 }
