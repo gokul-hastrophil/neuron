@@ -15,3 +15,17 @@
 -keep,includedescriptorclasses class ai.neuron.**$$serializer { *; }
 -keepclassmembers class ai.neuron.** { *** Companion; }
 -keepclasseswithmembers class ai.neuron.** { kotlinx.serialization.KSerializer serializer(...); }
+
+# Room DB entities
+-keep class ai.neuron.memory.entity.** { *; }
+-keep class ai.neuron.memory.dao.** { *; }
+
+# SDK public API (developer-facing)
+-keep class ai.neuron.sdk.NeuronSDK { *; }
+-keep class ai.neuron.sdk.NeuronTool { *; }
+-keep class ai.neuron.sdk.ToolRegistry { *; }
+
+# OkHttp + Retrofit
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }

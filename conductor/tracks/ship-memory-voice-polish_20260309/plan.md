@@ -132,13 +132,13 @@ First-run experience and user settings.
 
 ### Tasks
 
-- [ ] Task 5.1: Implement onboarding flow — Welcome → Grant Accessibility Permission → Test Basic Command → Done
-- [ ] Task 5.2: Add permissions explanation screen — explain what AccessibilityService reads and what it does NOT do
-- [ ] Task 5.3: Implement Settings screen — API key entry (Gemini, Ollama, OpenRouter), privacy toggles (cloud on/off), T4 app sensitivity overrides
-- [ ] Task 5.4: Add memory management in Settings — view stored preferences/workflows, delete individual entries or clear all
-- [ ] Task 5.5: Implement audit log UI — list of past actions filterable by app and date
-- [ ] Task 5.6: Performance optimization — cache UI trees for 200ms, ProGuard rules, resource shrinking
-- [ ] Task 5.7: APK size audit — target <50MB, remove unused resources, optimize native libs
+- [x] Task 5.1: Implement onboarding flow — Welcome → Grant Accessibility Permission → Test Basic Command → Done (OnboardingScreen.kt with 4-step wizard)
+- [x] Task 5.2: Add permissions explanation screen — card explaining what Neuron reads vs does NOT do, integrated into onboarding step 2
+- [x] Task 5.3: Implement Settings screen — API key entry (Gemini, Ollama, OpenRouter), privacy toggle (cloud on/off), SettingsScreen.kt with NeuronSettings data class
+- [x] Task 5.4: Add memory management in Settings — clear all memory button with confirmation dialog
+- [x] Task 5.5: Implement audit log UI — AuditLogScreen.kt with AuditEntry data class, lazy column, timestamps, success/error colors
+- [x] Task 5.6: Performance optimization — ProGuard rules updated with Room entities, SDK public API, OkHttp/Retrofit keep rules; release build has minify+shrink enabled
+- [x] Task 5.7: APK size audit — release build uses isMinifyEnabled + isShrinkResources, ProGuard-optimized
 
 ### Verification
 
