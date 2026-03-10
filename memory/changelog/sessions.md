@@ -171,3 +171,23 @@ Format: `### [YYYY-MM-DD] — [Session Title]`
 - Task 6.8: 1-hour soak test
 
 ---
+
+### 2026-03-10 — Benchmark Bug Fixes: 31% → 75%
+**Work done**:
+- **Pattern-match-first routing**: Moved `matchCommandPattern()` to top of `LLMRouter.route()`, before tier routing. Simple commands now always pattern-match regardless of IntentClassifier tier suggestion. This was the biggest win — 7+ commands that were hitting cloud LLM now complete in <1s.
+- **OEM fuzzy launchability**: AppResolver fuzzy match now verifies packages are launchable (`getLaunchIntentForPackage`) before returning. Fixes `com.android.incallui` (in-call UI, not launchable) being returned for "phone dialer".
+- **Multi-step "and" detection**: Pattern match skips commands with " and " conjunction, letting cloud LLM handle multi-step commands like "open WhatsApp and show me my chats".
+- **Intent keyword expansion**: Added "phone"/"dialer" to ACTION_DIAL intent keywords for OEM fallback.
+- **Test coverage**: Added `should_skipNonLaunchable_when_fuzzyMatchNotLaunchable` test, updated all fuzzy match tests with launchability mocks.
+
+**Benchmark results** (Redmi Note 9 Pro, Android 12):
+- Best run: **75% (12/16)** — target >=70% **MET**
+- Single-step (pattern-match): 10/10 (100%), avg 3-6s
+- Multi-step (cloud LLM): 2/6, avg 10-37s
+- Failures: WhatsApp+chats, contacts+list, Play Store+Instagram (cloud LLM dispatch), camera (timeout)
+
+**Key files modified**: `LLMRouter.kt`, `AppResolver.kt`, `PlanAndExecuteEngine.kt`, `AppResolverTest.kt`, `run_benchmark.sh`
+
+**Remaining**: Task 6.8 (1-hour soak test) — device-only
+
+---

@@ -69,3 +69,27 @@ Fix: Added `getLaunchIntentForPackage()` check before accepting dot-containing v
 Prevention: Never trust LLM-provided package names — always verify against PackageManager.
 
 ---
+
+### 2026-03-10 — Pattern matching bypassed for simple commands classified as T2/T3
+Symptom: "show recent apps", "pull down notification shade", "go back" timeout (60s) instead of completing instantly.
+Root cause: `IntentClassifier.SIMPLE_PATTERNS` didn't match multi-word variants. Classified as MODERATE → T2 → cloud. `matchCommandPattern()` only ran inside `handleOnDevice()` (T0/T1), never reached for T2/T3.
+Fix: Moved pattern matching to top of `LLMRouter.route()`, before tier routing. Simple commands always pattern-match regardless of tier.
+Prevention: Pattern matching must be the first check in the routing pipeline, independent of tier classification.
+
+---
+
+### 2026-03-10 — Fuzzy label match returns non-launchable packages (com.android.incallui)
+Symptom: "open the phone dialer" fails with "No launch intent for package 'com.android.incallui'".
+Root cause: AppResolver fuzzy match found `com.android.incallui` (label "Phone") but it has no MAIN/LAUNCHER activity — it's the in-call UI, not the dialer.
+Fix: Added `getLaunchIntentForPackage()` check in fuzzy match loops. Non-launchable packages are skipped, falling through to intent-based resolution (ACTION_DIAL → actual dialer).
+Prevention: Always verify launchability at every resolution stage, not just for KNOWN_APPS.
+
+---
+
+### 2026-03-10 — Pattern match greedily captures multi-step commands
+Symptom: "open WhatsApp and show me my chats" → LAUNCH("whatsapp and show me my chats") → AppResolver can't resolve.
+Root cause: Regex `^(?:open|launch|start)\s+(.+)$` captures everything after "open", including "and show me my chats".
+Fix: Skip pattern matching for commands containing " and " — let cloud LLM handle multi-step commands.
+Prevention: Pattern matching is for single-step deterministic commands only. Multi-step detection via "and" conjunction.
+
+---
