@@ -1,7 +1,7 @@
 #!/bin/bash
 # Neuron Integration Benchmark — 16-test automated runner
 # Sends each command via ADB broadcast, waits for completion, logs results.
-# Usage: ./scripts/run_benchmark.sh [--timeout 60]
+# Usage: ./scripts/run_benchmark.sh [timeout_seconds]
 #
 # Prerequisites:
 #   - Device connected via ADB
@@ -96,37 +96,38 @@ run_test() {
 
     # Go home first to reset state
     adb shell input keyevent KEYCODE_HOME 2>/dev/null
-    sleep 1
+    sleep 2
 
-    # Send command via broadcast
+    # Clear logcat before sending command
+    adb logcat -c 2>/dev/null
+
+    # Send command via broadcast (quote inside adb shell to handle spaces)
     local start_time=$(date +%s)
-    adb shell am broadcast \
-        -a ai.neuron.ACTION_TEXT_COMMAND \
-        --es command "$command" \
-        2>/dev/null
+    adb shell "am broadcast -a ai.neuron.ACTION_TEXT_COMMAND --es command '${command}'" \
+        >/dev/null 2>&1
 
-    # Wait for completion — poll logcat for DONE/ERROR/TIMEOUT
+    # Wait for completion — poll logcat for Done/Error
     local result="TIMEOUT"
     local notes=""
     local elapsed=0
 
-    # Clear logcat and monitor for engine state changes
-    adb logcat -c 2>/dev/null
-
     while [ $elapsed -lt "$TIMEOUT" ]; do
-        sleep 2
+        sleep 3
         elapsed=$(( $(date +%s) - start_time ))
 
+        local logs
+        logs=$(adb logcat -d -s NeuronBrain 2>/dev/null || true)
+
         # Check for DONE state
-        if adb logcat -d -s NeuronBrain NeuronAS 2>/dev/null | grep -q "EngineState.Done\|state=DONE\|Task completed"; then
+        if echo "$logs" | grep -q "state=Done"; then
             result="PASS"
             break
         fi
 
         # Check for ERROR state
-        if adb logcat -d -s NeuronBrain NeuronAS 2>/dev/null | grep -q "EngineState.Error\|state=ERROR"; then
+        if echo "$logs" | grep -q "state=Error"; then
             result="FAIL"
-            notes=$(adb logcat -d -s NeuronBrain 2>/dev/null | grep -i "error" | tail -1 | sed 's/.*: //')
+            notes=$(echo "$logs" | grep "state=Error" | tail -1 | sed 's/.*message="//' | sed 's/"//')
             break
         fi
     done
@@ -147,7 +148,9 @@ run_test() {
         TIMEOUT)
             echo -e "${YELLOW}TIMEOUT${NC} (${TIMEOUT}s)"
             # Check if partial progress was made
-            if adb logcat -d -s NeuronBrain 2>/dev/null | grep -q "Executing\|EngineState.Executing"; then
+            local logs
+            logs=$(adb logcat -d -s NeuronBrain 2>/dev/null || true)
+            if echo "$logs" | grep -q "state=Executing"; then
                 result="PARTIAL"
                 PARTIAL=$((PARTIAL + 1))
                 notes="Partial progress before timeout"

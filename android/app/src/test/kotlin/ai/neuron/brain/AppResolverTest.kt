@@ -34,27 +34,43 @@ class AppResolverTest {
 
         @Test
         fun should_resolveSettings_when_knownAppName() {
+            every { pm.getLaunchIntentForPackage("com.android.settings") } returns mockk()
             assertEquals("com.android.settings", resolver.resolve("settings", pm))
         }
 
         @Test
         fun should_resolveChrome_when_caseInsensitive() {
+            every { pm.getLaunchIntentForPackage("com.android.chrome") } returns mockk()
             assertEquals("com.android.chrome", resolver.resolve("Chrome", pm))
         }
 
         @Test
         fun should_resolveDialer_when_phoneDialer() {
-            assertEquals("com.google.android.dialer", resolver.resolve("phone dialer", pm))
+            every { pm.getLaunchIntentForPackage("com.android.phone") } returns mockk()
+            assertEquals("com.android.phone", resolver.resolve("phone dialer", pm))
         }
 
         @Test
         fun should_resolveDialer_when_dialer() {
-            assertEquals("com.google.android.dialer", resolver.resolve("dialer", pm))
+            every { pm.getLaunchIntentForPackage("com.android.phone") } returns mockk()
+            assertEquals("com.android.phone", resolver.resolve("dialer", pm))
         }
 
         @Test
         fun should_resolveWhatsApp_when_trimmedInput() {
+            every { pm.getLaunchIntentForPackage("com.whatsapp") } returns mockk()
             assertEquals("com.whatsapp", resolver.resolve("  whatsapp  ", pm))
+        }
+
+        @Test
+        fun should_fallThroughToFuzzy_when_knownPackageNotInstalled() {
+            // Known package not installed → getLaunchIntentForPackage returns null
+            every { pm.getLaunchIntentForPackage("com.android.phone") } returns null
+            val appInfo = ApplicationInfo().apply { packageName = "com.miui.phone" }
+            every { pm.getInstalledApplications(any<Int>()) } returns listOf(appInfo)
+            every { pm.getApplicationLabel(appInfo) } returns "Phone"
+            every { pm.getLaunchIntentForPackage("com.miui.phone") } returns mockk()
+            assertEquals("com.miui.phone", resolver.resolve("phone", pm))
         }
     }
 
@@ -85,6 +101,7 @@ class AppResolverTest {
             val appInfo = ApplicationInfo().apply { packageName = "org.telegram.messenger" }
             every { pm.getInstalledApplications(any<Int>()) } returns listOf(appInfo)
             every { pm.getApplicationLabel(appInfo) } returns "Telegram"
+            every { pm.getLaunchIntentForPackage("org.telegram.messenger") } returns mockk()
             assertEquals("org.telegram.messenger", resolver.resolve("telegram", pm))
         }
 
@@ -93,7 +110,25 @@ class AppResolverTest {
             val appInfo = ApplicationInfo().apply { packageName = "com.spotify.music" }
             every { pm.getInstalledApplications(any<Int>()) } returns listOf(appInfo)
             every { pm.getApplicationLabel(appInfo) } returns "Spotify Music"
+            every { pm.getLaunchIntentForPackage("com.spotify.music") } returns mockk()
             assertEquals("com.spotify.music", resolver.resolve("spotify", pm))
+        }
+
+        @Test
+        fun should_skipNonLaunchable_when_fuzzyMatchNotLaunchable() {
+            // "phone" is in KNOWN_APPS → "com.android.phone", but not installed
+            every { pm.getLaunchIntentForPackage("com.android.phone") } returns null
+            val incallui = ApplicationInfo().apply { packageName = "com.android.incallui" }
+            val contacts = ApplicationInfo().apply { packageName = "com.android.contacts" }
+            every { pm.getInstalledApplications(any<Int>()) } returns listOf(incallui, contacts)
+            every { pm.getApplicationLabel(incallui) } returns "Phone"
+            every { pm.getApplicationLabel(contacts) } returns "Contacts"
+            every { pm.getLaunchIntentForPackage("com.android.incallui") } returns null
+            every { pm.getLaunchIntentForPackage("com.android.contacts") } returns mockk()
+            // "phone" fuzzy matches "Phone" label on incallui, but it's not launchable.
+            // Falls through to intent-based resolution via ACTION_DIAL.
+            every { pm.resolveActivity(any(), any<Int>()) } returns createResolveInfo("com.android.contacts", ".DialtactsActivity")
+            assertEquals("com.android.contacts", resolver.resolve("phone", pm))
         }
     }
 
@@ -123,6 +158,9 @@ class AppResolverTest {
 
         @Test
         fun should_resolveAlarmViaIntent_when_packageResolutionFails() {
+            // "alarm" is in KNOWN_APPS as com.android.deskclock,
+            // but when that package isn't installed, falls through to fuzzy then intent
+            every { pm.getLaunchIntentForPackage("com.android.deskclock") } returns null
             every { pm.getInstalledApplications(any<Int>()) } returns emptyList()
             val resolveInfo = createResolveInfo("com.hihonor.deskclock", ".AlarmActivity")
             every { pm.resolveActivity(any(), any<Int>()) } returns resolveInfo
@@ -193,7 +231,7 @@ class AppResolverTest {
 
         @Test
         fun should_matchDialerKeywords() {
-            val keywords = listOf("telephone", "call", "dial", "ring")
+            val keywords = listOf("telephone", "call", "dial", "ring", "phone", "dialer")
             for (kw in keywords) {
                 assertNotNull(
                     resolver.matchIntentForQuery(kw),
@@ -271,6 +309,7 @@ class AppResolverTest {
 
         @Test
         fun should_preferKnownApp_when_bothKnownAndIntentMatch() {
+            every { pm.getLaunchIntentForPackage("com.android.settings") } returns mockk()
             assertEquals("com.android.settings", resolver.resolve("settings", pm))
         }
 
@@ -279,6 +318,7 @@ class AppResolverTest {
             val appInfo = ApplicationInfo().apply { packageName = "com.custom.myapp" }
             every { pm.getInstalledApplications(any<Int>()) } returns listOf(appInfo)
             every { pm.getApplicationLabel(appInfo) } returns "MyApp"
+            every { pm.getLaunchIntentForPackage("com.custom.myapp") } returns mockk()
 
             assertEquals("com.custom.myapp", resolver.resolve("myapp", pm))
         }

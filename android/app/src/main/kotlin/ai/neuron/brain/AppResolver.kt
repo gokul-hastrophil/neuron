@@ -20,19 +20,21 @@ class AppResolver @Inject constructor() {
             "chrome" to "com.android.chrome",
             "whatsapp" to "com.whatsapp",
             "messages" to "com.google.android.apps.messaging",
-            "phone" to "com.google.android.dialer",
-            "dialer" to "com.google.android.dialer",
-            "phone dialer" to "com.google.android.dialer",
+            "phone" to "com.android.phone",
+            "dialer" to "com.android.phone",
+            "phone dialer" to "com.android.phone",
             "camera" to "com.android.camera",
             "calculator" to "com.google.android.calculator",
-            "clock" to "com.google.android.deskclock",
+            "clock" to "com.android.deskclock",
+            "alarm" to "com.android.deskclock",
             "gmail" to "com.google.android.gm",
             "maps" to "com.google.android.apps.maps",
+            "google maps" to "com.google.android.apps.maps",
             "youtube" to "com.google.android.youtube",
             "play store" to "com.android.vending",
             "files" to "com.google.android.apps.nbu.files",
             "photos" to "com.google.android.apps.photos",
-            "contacts" to "com.google.android.contacts",
+            "contacts" to "com.android.contacts",
             "calendar" to "com.google.android.calendar",
         )
     }
@@ -40,8 +42,11 @@ class AppResolver @Inject constructor() {
     fun resolve(value: String, pm: PackageManager): String? {
         val lower = value.lowercase().trim()
 
-        // 1. Known apps map (exact match)
-        KNOWN_APPS[lower]?.let { return it }
+        // 1. Known apps map — but verify the package is actually installed
+        KNOWN_APPS[lower]?.let { knownPkg ->
+            if (pm.getLaunchIntentForPackage(knownPkg) != null) return knownPkg
+            Log.w(TAG, "Known package '$knownPkg' not on this device, falling through to fuzzy match")
+        }
 
         // 2. Package name validation (contains dot)
         if ('.' in value) {
@@ -49,20 +54,23 @@ class AppResolver @Inject constructor() {
             Log.w(TAG, "Package '$value' not launchable, trying label lookup...")
         }
 
-        // 3. Fuzzy match: search installed apps by label
+        // 3. Fuzzy match: search installed apps by label (only launchable apps)
         val searchTerm = value.replace("com.android.", "").replace("com.google.", "")
         val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        // Exact label match
         for (app in apps) {
             val label = pm.getApplicationLabel(app).toString()
             if (label.equals(lower, ignoreCase = true) || label.equals(searchTerm, ignoreCase = true)) {
-                return app.packageName
+                if (pm.getLaunchIntentForPackage(app.packageName) != null) return app.packageName
+                Log.d(TAG, "Fuzzy exact match '${app.packageName}' not launchable, skipping")
             }
         }
-        // Partial match
+        // Partial label match
         for (app in apps) {
             val label = pm.getApplicationLabel(app).toString().lowercase()
             if (label.contains(lower) || lower.contains(label)) {
-                return app.packageName
+                if (pm.getLaunchIntentForPackage(app.packageName) != null) return app.packageName
+                Log.d(TAG, "Fuzzy partial match '${app.packageName}' not launchable, skipping")
             }
         }
 
@@ -82,7 +90,7 @@ class AppResolver @Inject constructor() {
 
     internal fun matchIntentForQuery(query: String): Intent? {
         // Map natural language queries to standard Android intent actions
-        val dialerKeywords = listOf("telephone", "call", "dial", "ring")
+        val dialerKeywords = listOf("telephone", "call", "dial", "ring", "phone", "dialer")
         val cameraKeywords = listOf("photo", "picture", "snap", "take a photo", "shoot")
         val alarmKeywords = listOf("alarm", "timer", "reminder", "wake")
         val browserKeywords = listOf("browser", "web", "internet", "surf")

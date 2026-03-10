@@ -31,6 +31,31 @@ class LLMRouter @Inject constructor(
         uiTree: UITree,
         classification: IntentClassification,
     ): NeuronResult<LLMResponse> {
+        // Always try deterministic pattern matching first, regardless of tier.
+        // This avoids sending simple commands (open app, go back, show recents) to cloud.
+        val patternAction = matchCommandPattern(command)
+        if (patternAction != null) {
+            val effectiveAction = if (patternAction.actionType == ActionType.LAUNCH &&
+                isAppAlreadyOpen(patternAction.value, uiTree.packageName)
+            ) {
+                LLMAction(
+                    actionType = ActionType.DONE,
+                    reasoning = "${patternAction.value} is already open",
+                    confidence = 1.0,
+                )
+            } else {
+                patternAction
+            }
+
+            return NeuronResult.Success(
+                LLMResponse(
+                    action = effectiveAction,
+                    tier = "T0",
+                    modelId = "pattern-match",
+                ),
+            )
+        }
+
         val effectiveTier = if (sensitivityGate.isSensitive(uiTree)) {
             LLMTier.T4
         } else {
@@ -69,35 +94,36 @@ class LLMRouter @Inject constructor(
         uiTree: UITree,
         tier: LLMTier,
     ): NeuronResult<LLMResponse> {
-        // Try deterministic pattern matching first (fast, no LLM needed)
-        val patternAction = matchCommandPattern(command)
-        if (patternAction != null) {
-            return NeuronResult.Success(
-                LLMResponse(
-                    action = patternAction,
-                    tier = tier.name,
-                    modelId = "pattern-match",
-                ),
-            )
-        }
-
-        // T1 (Gemma 3n) not yet integrated — fall through to T2 cloud
+        // Pattern matching already handled in route() — if we're here, no pattern matched.
+        // T1 (Gemma 3n) not yet integrated — fall through to T2 cloud.
         return handleCloud(command, uiTree, LLMTier.T2)
+    }
+
+    private fun isAppAlreadyOpen(requestedApp: String?, foregroundPackage: String): Boolean {
+        if (requestedApp == null) return false
+        val lower = requestedApp.lowercase()
+        // Check if the foreground package contains the requested app name
+        val fgLower = foregroundPackage.lowercase()
+        return fgLower.contains(lower) || lower.contains(fgLower.substringAfterLast('.'))
     }
 
     private fun matchCommandPattern(command: String): LLMAction? {
         val cmd = command.trim().lowercase()
 
-        // "open <app>" → LAUNCH
-        val openMatch = Regex("^(?:open|launch|start)\\s+(.+)$").find(cmd)
-        if (openMatch != null) {
-            val appName = openMatch.groupValues[1].trim()
-            return LLMAction(
-                actionType = ActionType.LAUNCH,
-                value = appName,
-                reasoning = "Launching $appName",
-                confidence = 0.95,
-            )
+        // "open <app>" → LAUNCH (strip articles: "the", "my", "a")
+        // Skip multi-step commands containing "and" (e.g., "open WhatsApp and show me chats")
+        if (!cmd.contains(" and ")) {
+            val openMatch = Regex("^(?:open|launch|start)\\s+(.+)$").find(cmd)
+            if (openMatch != null) {
+                val raw = openMatch.groupValues[1].trim()
+                val appName = raw.removePrefix("the ").removePrefix("my ").removePrefix("a ").trim()
+                return LLMAction(
+                    actionType = ActionType.LAUNCH,
+                    value = appName,
+                    reasoning = "Launching $appName",
+                    confidence = 0.95,
+                )
+            }
         }
 
         // "go home" / "go back"
@@ -107,11 +133,20 @@ class LLMRouter @Inject constructor(
         if (cmd == "go back" || cmd == "back") {
             return LLMAction(actionType = ActionType.NAVIGATE, value = "back", reasoning = "Going back", confidence = 1.0)
         }
-        if (cmd == "recents" || cmd == "show recents" || cmd == "open recents") {
+        if (cmd == "recents" || cmd == "show recents" || cmd == "open recents" ||
+            cmd == "recent apps" || cmd == "show recent apps"
+        ) {
             return LLMAction(actionType = ActionType.NAVIGATE, value = "recents", reasoning = "Opening recents", confidence = 1.0)
         }
-        if (cmd == "notifications" || cmd == "show notifications" || cmd == "open notifications") {
+        if (cmd == "notifications" || cmd == "show notifications" || cmd == "open notifications" ||
+            cmd == "pull down the notification shade" || cmd == "pull down notifications" ||
+            cmd == "notification shade" || cmd == "open notification shade"
+        ) {
             return LLMAction(actionType = ActionType.NAVIGATE, value = "notifications", reasoning = "Opening notifications", confidence = 1.0)
+        }
+        // "go to the home screen" → home
+        if (cmd.contains("home screen") || cmd == "go to home") {
+            return LLMAction(actionType = ActionType.NAVIGATE, value = "home", reasoning = "Going home", confidence = 1.0)
         }
 
         return null

@@ -107,6 +107,17 @@ class PlanAndExecuteEngine @Inject constructor(
                             val success = actionDispatcher.dispatch(action)
                             logStep(stepIndex, uiTree, routeResult.data.tier, action, success, stepStart)
 
+                            // Pattern-matched single-shot actions: LAUNCH and NAVIGATE
+                            // complete immediately after successful execution (no replanning needed)
+                            if (success && routeResult.data.modelId == "pattern-match" &&
+                                action.actionType in listOf(ActionType.LAUNCH, ActionType.NAVIGATE)
+                            ) {
+                                val totalDuration = System.currentTimeMillis() - startTime
+                                memoryExtractor.extractFromCompletedTask(command, _stepLogs, totalDuration)
+                                emit(EngineState.Done(action.reasoning ?: "Done"))
+                                return@flow
+                            }
+
                             if (!success) {
                                 // Abort: repeated failures on same action
                                 val actionKey = "${action.actionType}:${action.targetId}"
