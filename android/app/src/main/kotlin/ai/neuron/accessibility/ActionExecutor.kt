@@ -68,13 +68,24 @@ class ActionExecutor(
             ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
 
         val clickTarget = findClickableNode(node)
-            ?: return ActionResult.Error(action, "Node '${action.nodeId}' is not clickable and has no clickable ancestor")
+        if (clickTarget == null) {
+            node.recycle()
+            return ActionResult.Error(action, "Node '${action.nodeId}' is not clickable and has no clickable ancestor")
+        }
 
         return try {
-            clickTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            ActionResult.Success(action)
+            val success = clickTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            if (success) {
+                ActionResult.Success(action)
+            } else {
+                ActionResult.Error(action, "performAction(ACTION_CLICK) returned false for '${action.nodeId}'")
+            }
         } finally {
-            recycleNodes(node, clickTarget)
+            // Avoid double-recycle when clickTarget is the same object as node
+            if (clickTarget !== node) {
+                node.recycle()
+            }
+            clickTarget.recycle()
         }
     }
 
@@ -251,7 +262,12 @@ class ActionExecutor(
         val root = service.rootInActiveWindow ?: return null
         return try {
             val nodes = root.findAccessibilityNodeInfosByViewId(nodeId)
-            nodes.firstOrNull()
+            val target = nodes.firstOrNull()
+            // Recycle all non-returned nodes to prevent native memory leaks
+            for (i in 1 until nodes.size) {
+                nodes[i].recycle()
+            }
+            target
         } finally {
             root.recycle()
         }

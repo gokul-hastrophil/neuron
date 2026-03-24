@@ -22,6 +22,10 @@ class ScreenCapture(
             val bitmap = captureScreen()
                 ?: return ScreenshotResult.Error("Screenshot returned null bitmap")
 
+            // Save dimensions before recycle — accessing a recycled bitmap crashes
+            val bitmapWidth = bitmap.width
+            val bitmapHeight = bitmap.height
+
             val compressed = compressToJpeg(bitmap, JPEG_QUALITY, MAX_DIMENSION)
             bitmap.recycle()
 
@@ -31,8 +35,8 @@ class ScreenCapture(
             ScreenshotResult.Success(
                 jpeg = compressed,
                 base64 = base64,
-                width = bitmap.width,
-                height = bitmap.height,
+                width = bitmapWidth,
+                height = bitmapHeight,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Screenshot failed", e)

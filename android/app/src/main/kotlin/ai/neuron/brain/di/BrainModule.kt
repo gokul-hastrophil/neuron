@@ -1,22 +1,19 @@
 package ai.neuron.brain.di
 
 import ai.neuron.BuildConfig
-import ai.neuron.accessibility.ActionExecutor
 import ai.neuron.accessibility.NeuronAccessibilityService
 import ai.neuron.accessibility.UITreeReader
-import ai.neuron.accessibility.model.NeuronAction
-import ai.neuron.accessibility.model.ActionResult
-import ai.neuron.accessibility.model.ScrollDirection
 import ai.neuron.accessibility.model.UITree
-import ai.neuron.brain.ActionMapper
 import ai.neuron.brain.AppResolver
 import ai.neuron.brain.PlanAndExecuteEngine
+import ai.neuron.brain.StructuredToolCallParser
 import ai.neuron.brain.client.GeminiFlashClient
 import ai.neuron.brain.client.NvidiaQwenClient
 import ai.neuron.brain.client.OllamaCloudClient
 import ai.neuron.brain.client.OpenRouterClient
 import ai.neuron.brain.model.ActionType
 import ai.neuron.brain.model.LLMAction
+import ai.neuron.nerve.DualPathExecutor
 import ai.neuron.sdk.ToolRegistry
 import android.content.Context
 import android.util.Log
@@ -62,8 +59,8 @@ object BrainModule {
 
     @Provides
     @Singleton
-    fun provideGeminiFlashClient(okHttpClient: OkHttpClient): GeminiFlashClient =
-        GeminiFlashClient(okHttpClient)
+    fun provideGeminiFlashClient(okHttpClient: OkHttpClient, toolCallParser: StructuredToolCallParser): GeminiFlashClient =
+        GeminiFlashClient(okHttpClient, toolCallParser)
 
     @Provides
     @Singleton
@@ -77,8 +74,8 @@ object BrainModule {
 
     @Provides
     @Singleton
-    fun provideOllamaCloudClient(okHttpClient: OkHttpClient): OllamaCloudClient =
-        OllamaCloudClient(okHttpClient)
+    fun provideOllamaCloudClient(okHttpClient: OkHttpClient, toolCallParser: StructuredToolCallParser): OllamaCloudClient =
+        OllamaCloudClient(okHttpClient, toolCallParser)
 
     @Provides
     @Singleton
@@ -101,6 +98,7 @@ object BrainModule {
         @ApplicationContext context: Context,
         appResolver: AppResolver,
         toolRegistry: ToolRegistry,
+        dualPathExecutor: DualPathExecutor,
     ): PlanAndExecuteEngine.ActionDispatcher =
         object : PlanAndExecuteEngine.ActionDispatcher {
             override suspend fun dispatch(action: LLMAction): Boolean =
@@ -123,61 +121,27 @@ object BrainModule {
                         return@withContext true
                     }
 
-                    val service = NeuronAccessibilityService.instance
-                    if (service == null) {
-                        Log.w(TAG, "ActionDispatcher: AccessibilityService not active, dropping action ${action.actionType}")
-                        return@withContext false
+                    // Route through DualPathExecutor: tries AppFunctions first, falls back to Accessibility
+                    val targetPackage = resolveTargetPackage(action, context.packageManager, appResolver)
+                    val result = dualPathExecutor.execute(action, targetPackage)
+                    if (!result.success) {
+                        Log.e(TAG, "ActionDispatcher: execution failed via ${result.path}: ${result.message}")
+                    } else {
+                        Log.d(TAG, "ActionDispatcher: executed via ${result.path}")
                     }
-                    val neuronAction = mapToNeuronAction(action, context.packageManager, appResolver)
-                    if (neuronAction == null) {
-                        Log.w(TAG, "ActionDispatcher: no NeuronAction mapping for ${action.actionType}, dropping")
-                        return@withContext false
-                    }
-                    val result = ActionExecutor(service).execute(neuronAction)
-                    if (result is ActionResult.Error) {
-                        Log.e(TAG, "ActionDispatcher: execution failed: ${result.message}")
-                    }
-                    result is ActionResult.Success
+                    result.success
                 }
         }
 
-    private fun mapToNeuronAction(action: LLMAction, pm: PackageManager, appResolver: AppResolver): NeuronAction? =
-        when (action.actionType) {
-            ActionType.TAP -> {
-                val nodeId = action.targetId ?: return null
-                NeuronAction.Tap(nodeId = nodeId)
-            }
-            ActionType.TYPE -> {
-                val nodeId = action.targetId ?: return null
-                val text = action.value ?: return null
-                NeuronAction.TypeText(nodeId = nodeId, text = text)
-            }
-            ActionType.SWIPE -> {
-                val direction = when (action.value?.lowercase()) {
-                    "up" -> ScrollDirection.UP
-                    "left" -> ScrollDirection.LEFT
-                    "right" -> ScrollDirection.RIGHT
-                    else -> ScrollDirection.DOWN
-                }
-                NeuronAction.Scroll(nodeId = "", direction = direction)
-            }
-            ActionType.LAUNCH -> {
-                val value = action.value ?: return null
-                val packageName = appResolver.resolve(value, pm) ?: run {
-                    Log.w(TAG, "ActionDispatcher: could not resolve app '$value' to package name")
-                    return null
-                }
-                NeuronAction.LaunchApp(packageName = packageName)
-            }
-            ActionType.NAVIGATE -> ActionMapper.mapNavigate(action.value)
-            // Terminal/meta action types — not dispatched to the accessibility layer
-            ActionType.DONE,
-            ActionType.ERROR,
-            ActionType.CONFIRM,
-            ActionType.WAIT,
-            ActionType.TOOL_CALL,
-            -> null
+    private fun resolveTargetPackage(action: LLMAction, pm: PackageManager, appResolver: AppResolver): String? {
+        if (action.actionType == ActionType.LAUNCH) {
+            val value = action.value ?: return null
+            return appResolver.resolve(value, pm)
         }
+        // For non-launch actions, the target package comes from the current foreground app
+        val service = NeuronAccessibilityService.instance ?: return null
+        return service.rootInActiveWindow?.packageName?.toString()
+    }
 
     private fun sanitizeApiKeys(message: String): String {
         var sanitized = message
