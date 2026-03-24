@@ -69,13 +69,12 @@ services:
       - "5037:5037"   # ADB server
       - "5554:5554"   # Emulator console
       - "5555:5555"   # ADB device
+      - "6080:6080"   # VNC web viewer (view emulator in browser!)
     volumes:
       - neuron-emulator:/root/.android
     environment:
       - EMULATOR_DEVICE=Pixel 7
       - WEB_VNC=true
-    ports:
-      - "6080:6080"   # VNC web viewer (view emulator in browser!)
     networks:
       - neuron-net
 
@@ -85,7 +84,7 @@ services:
     container_name: neuron-logs
     restart: unless-stopped
     ports:
-      - "3100:3100"
+      - "3101:3100"   # Host 3101 to avoid conflict with Paperclip on 3100
     volumes:
       - neuron-logs:/loki
     networks:

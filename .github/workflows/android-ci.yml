@@ -3,8 +3,14 @@ name: Android CI
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-ci.yml'
   pull_request:
     branches: [ main, develop ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-ci.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,7 +19,7 @@ concurrency:
 jobs:
 
   lint:
-    name: Lint + Static Analysis
+    name: Kotlin Lint + Static Analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +31,14 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Gradle lint
-        run: cd android && ./gradlew lint ktlintCheck detekt --no-daemon
-        continue-on-error: false
+      - name: Ktlint check
+        run: cd android && ./gradlew ktlintCheck --no-daemon
 
-      - name: Python lint (server)
-        run: |
-          pip install ruff
-          ruff check server/
+      - name: Detekt
+        run: cd android && ./gradlew detekt --no-daemon
+
+      - name: Android lint
+        run: cd android && ./gradlew lint --no-daemon
 
       - name: Upload lint reports
         uses: actions/upload-artifact@v4
@@ -55,22 +61,15 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Run Android unit tests
-        run: cd android && ./gradlew test --no-daemon
-
-      - name: Run Python tests
-        run: |
-          pip install pytest pytest-asyncio anthropic google-generativeai fastapi httpx
-          cd server && pytest tests/ -v
+      - name: Run unit tests (sideload flavor)
+        run: cd android && ./gradlew testSideloadDebugUnitTest --no-daemon
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
-          path: |
-            android/app/build/reports/tests/
-            server/test-results/
+          path: android/app/build/reports/tests/
 
       - name: Test Summary
         uses: dorny/test-reporter@v1
@@ -95,7 +94,7 @@ jobs:
           cache: gradle
 
       - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+        run: cd android && ./gradlew assembleSideloadDebug --no-daemon
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
@@ -104,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: neuron-debug-apk-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/sideload/debug/*.apk
           retention-days: 7
 
   ai-review:

@@ -33,8 +33,8 @@ jobs:
           VERSION="${{ github.event.inputs.version || github.ref_name }}"
           echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_ENV
 
-      - name: Build release APK
-        run: cd android && ./gradlew assembleRelease --no-daemon
+      - name: Build release APK (sideload flavor)
+        run: cd android && ./gradlew assembleSideloadRelease --no-daemon
         env:
           ANTHROPIC_API_KEY: ""
           GEMINI_API_KEY: ""
@@ -42,7 +42,7 @@ jobs:
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: android/app/build/outputs/apk/release
+          releaseDirectory: android/app/build/outputs/apk/sideload/release
           signingKeyBase64: ${{ secrets.SIGNING_KEY_BASE64 }}
           alias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -98,6 +98,6 @@ jobs:
             
             **Requirements:** Android 8.0+ (API 26+)
           files: |
-            android/app/build/outputs/apk/release/app-release-signed.apk
+            android/app/build/outputs/apk/sideload/release/app-sideload-release-signed.apk
           draft: false
           prerelease: ${{ contains(env.RELEASE_VERSION, 'beta') || contains(env.RELEASE_VERSION, 'alpha') }}
