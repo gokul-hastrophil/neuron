@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
 }
 
 val localProperties = Properties()
@@ -53,13 +55,25 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("sideload") {
+            dimension = "distribution"
+            buildConfigField("String", "DEFAULT_EXECUTION_MODE", "\"AUTONOMOUS\"")
+        }
+        create("playstore") {
+            dimension = "distribution"
+            buildConfigField("String", "DEFAULT_EXECUTION_MODE", "\"SUPERVISED\"")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             val keystorePath = System.getenv("NEURON_KEYSTORE_PATH") ?: ""
             if (keystorePath.isNotEmpty()) {
@@ -92,6 +106,16 @@ android {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+ktlint {
+    android.set(true)
+    outputToConsole.set(true)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
 }
 
 dependencies {

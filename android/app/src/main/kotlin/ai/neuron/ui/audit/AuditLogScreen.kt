@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package ai.neuron.ui.audit
 
 import androidx.compose.foundation.layout.Arrangement
@@ -34,9 +36,10 @@ data class AuditEntry(
 @Composable
 fun AuditLogScreen(entries: List<AuditEntry>) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
     ) {
         Text(
             text = "Audit Log",
@@ -66,21 +69,24 @@ fun AuditLogScreen(entries: List<AuditEntry>) {
 
 @Composable
 private fun AuditEntryCard(entry: AuditEntry) {
-    val timeStr = Instant.ofEpochMilli(entry.timestamp)
-        .atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    val timeStr =
+        Instant.ofEpochMilli(entry.timestamp)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 
-    val statusColor = if (entry.success) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.error
-    }
+    val statusColor =
+        if (entry.success) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.error
+        }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(

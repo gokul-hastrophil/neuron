@@ -20,168 +20,176 @@ import javax.inject.Singleton
  *                        ERROR       ERROR
  */
 @Singleton
-class SpeechRecognitionManager @Inject constructor() {
-
-    enum class State {
-        IDLE,
-        LISTENING,
-        PROCESSING,
-        ERROR,
-    }
-
-    private val _state = MutableStateFlow(State.IDLE)
-    val state: StateFlow<State> = _state
-
-    private val _partialText = MutableStateFlow("")
-    val partialText: StateFlow<String> = _partialText
-
-    private val _finalText = MutableStateFlow<String?>(null)
-    val finalText: StateFlow<String?> = _finalText
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage
-
-    private val _rmsDb = MutableStateFlow(0f)
-    val rmsDb: StateFlow<Float> = _rmsDb
-
-    val isListening: Boolean get() = _state.value == State.LISTENING
-
-    private var speechRecognizer: SpeechRecognizer? = null
-
-    /**
-     * Start listening for speech. Requires RECORD_AUDIO permission.
-     * Returns false if SpeechRecognizer is not available on this device.
-     */
-    fun startListening(context: Context): Boolean {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            Log.w(TAG, "Speech recognition not available on this device")
-            _errorMessage.value = "Speech recognition not available"
-            _state.value = State.ERROR
-            return false
+class SpeechRecognitionManager
+    @Inject
+    constructor() {
+        enum class State {
+            IDLE,
+            LISTENING,
+            PROCESSING,
+            ERROR,
         }
 
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        speechRecognizer = recognizer
+        private val _state = MutableStateFlow(State.IDLE)
+        val state: StateFlow<State> = _state
 
-        recognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                onRecognitionStarted()
+        private val _partialText = MutableStateFlow("")
+        val partialText: StateFlow<String> = _partialText
+
+        private val _finalText = MutableStateFlow<String?>(null)
+        val finalText: StateFlow<String?> = _finalText
+
+        private val _errorMessage = MutableStateFlow<String?>(null)
+        val errorMessage: StateFlow<String?> = _errorMessage
+
+        private val _rmsDb = MutableStateFlow(0f)
+        val rmsDb: StateFlow<Float> = _rmsDb
+
+        val isListening: Boolean get() = _state.value == State.LISTENING
+
+        private var speechRecognizer: SpeechRecognizer? = null
+
+        /**
+         * Start listening for speech. Requires RECORD_AUDIO permission.
+         * Returns false if SpeechRecognizer is not available on this device.
+         */
+        fun startListening(context: Context): Boolean {
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                Log.w(TAG, "Speech recognition not available on this device")
+                _errorMessage.value = "Speech recognition not available"
+                _state.value = State.ERROR
+                return false
             }
 
-            override fun onBeginningOfSpeech() {}
+            val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            speechRecognizer = recognizer
 
-            override fun onRmsChanged(rmsdB: Float) {
-                _rmsDb.value = rmsdB
-            }
+            recognizer.setRecognitionListener(
+                object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        onRecognitionStarted()
+                    }
 
-            override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onBeginningOfSpeech() {}
 
-            override fun onEndOfSpeech() {
-                onProcessing()
-            }
+                    override fun onRmsChanged(rmsdB: Float) {
+                        _rmsDb.value = rmsdB
+                    }
 
-            override fun onError(error: Int) {
-                val message = mapErrorCode(error)
-                onError(message)
-            }
+                    override fun onBufferReceived(buffer: ByteArray?) {}
 
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val bestMatch = matches?.firstOrNull()
-                if (bestMatch != null) {
-                    onFinalResult(bestMatch)
-                } else {
-                    onError("No speech recognized")
+                    override fun onEndOfSpeech() {
+                        onProcessing()
+                    }
+
+                    override fun onError(error: Int) {
+                        val message = mapErrorCode(error)
+                        onError(message)
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val bestMatch = matches?.firstOrNull()
+                        if (bestMatch != null) {
+                            onFinalResult(bestMatch)
+                        } else {
+                            onError("No speech recognized")
+                        }
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        matches?.firstOrNull()?.let { onPartialResult(it) }
+                    }
+
+                    override fun onEvent(
+                        eventType: Int,
+                        params: Bundle?,
+                    ) {}
+                },
+            )
+
+            val intent =
+                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 }
-            }
 
-            override fun onPartialResults(partialResults: Bundle?) {
-                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                matches?.firstOrNull()?.let { onPartialResult(it) }
-            }
-
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            recognizer.startListening(intent)
+            return true
         }
 
-        recognizer.startListening(intent)
-        return true
-    }
+        fun stopListening() {
+            // Only signal the recognizer to stop — don't destroy it.
+            // The onResults/onError callback will fire asynchronously and
+            // call onFinalResult() or onError(), which transitions state to IDLE/ERROR.
+            // Destroying here would race with those callbacks.
+            speechRecognizer?.stopListening()
+        }
 
-    fun stopListening() {
-        // Only signal the recognizer to stop — don't destroy it.
-        // The onResults/onError callback will fire asynchronously and
-        // call onFinalResult() or onError(), which transitions state to IDLE/ERROR.
-        // Destroying here would race with those callbacks.
-        speechRecognizer?.stopListening()
-    }
+        fun cancel() {
+            speechRecognizer?.cancel()
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+            onRecognitionStopped()
+        }
 
-    fun cancel() {
-        speechRecognizer?.cancel()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
-        onRecognitionStopped()
-    }
+        // --- State transition methods (internal for testing) ---
 
-    // --- State transition methods (internal for testing) ---
+        internal fun onRecognitionStarted() {
+            _state.value = State.LISTENING
+            _errorMessage.value = null
+            _partialText.value = ""
+        }
 
-    internal fun onRecognitionStarted() {
-        _state.value = State.LISTENING
-        _errorMessage.value = null
-        _partialText.value = ""
-    }
+        internal fun onRecognitionStopped() {
+            _state.value = State.IDLE
+            _partialText.value = ""
+            _rmsDb.value = 0f
+        }
 
-    internal fun onRecognitionStopped() {
-        _state.value = State.IDLE
-        _partialText.value = ""
-        _rmsDb.value = 0f
-    }
+        internal fun onProcessing() {
+            _state.value = State.PROCESSING
+        }
 
-    internal fun onProcessing() {
-        _state.value = State.PROCESSING
-    }
+        internal fun onPartialResult(text: String) {
+            _partialText.value = text
+        }
 
-    internal fun onPartialResult(text: String) {
-        _partialText.value = text
-    }
+        internal fun onFinalResult(text: String) {
+            _finalText.value = text
+            _partialText.value = ""
+            _state.value = State.IDLE
+            destroyRecognizer()
+        }
 
-    internal fun onFinalResult(text: String) {
-        _finalText.value = text
-        _partialText.value = ""
-        _state.value = State.IDLE
-        destroyRecognizer()
-    }
+        internal fun onError(message: String) {
+            _errorMessage.value = message
+            _state.value = State.ERROR
+            destroyRecognizer()
+        }
 
-    internal fun onError(message: String) {
-        _errorMessage.value = message
-        _state.value = State.ERROR
-        destroyRecognizer()
-    }
+        private fun destroyRecognizer() {
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+        }
 
-    private fun destroyRecognizer() {
-        speechRecognizer?.destroy()
-        speechRecognizer = null
-    }
+        private fun mapErrorCode(error: Int): String =
+            when (error) {
+                SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                SpeechRecognizer.ERROR_CLIENT -> "Client side error"
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+                SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                SpeechRecognizer.ERROR_NO_MATCH -> "No speech match"
+                SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
+                SpeechRecognizer.ERROR_SERVER -> "Server error"
+                SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech detected"
+                else -> "Unknown error ($error)"
+            }
 
-    private fun mapErrorCode(error: Int): String = when (error) {
-        SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-        SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-        SpeechRecognizer.ERROR_NETWORK -> "Network error"
-        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-        SpeechRecognizer.ERROR_NO_MATCH -> "No speech match"
-        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
-        SpeechRecognizer.ERROR_SERVER -> "Server error"
-        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech detected"
-        else -> "Unknown error ($error)"
+        companion object {
+            private const val TAG = "NeuronSpeech"
+        }
     }
-
-    companion object {
-        private const val TAG = "NeuronSpeech"
-    }
-}

@@ -66,17 +66,19 @@ interface ClaudeApi {
 class ClaudeClient(
     private val okHttpClient: OkHttpClient,
 ) {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-        explicitNulls = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            explicitNulls = false
+        }
 
-    private val api: ClaudeApi = Retrofit.Builder()
-        .baseUrl("https://api.anthropic.com/")
-        .client(okHttpClient)
-        .build()
-        .create(ClaudeApi::class.java)
+    private val api: ClaudeApi =
+        Retrofit.Builder()
+            .baseUrl("https://api.anthropic.com/")
+            .client(okHttpClient)
+            .build()
+            .create(ClaudeApi::class.java)
 
     private val apiKey: String get() = BuildConfig.ANTHROPIC_API_KEY
 
@@ -88,15 +90,17 @@ class ClaudeClient(
         maxTokens: Int = 2048,
     ): NeuronResult<LLMResponse> {
         return try {
-            val request = ClaudeRequest(
-                model = model,
-                maxTokens = maxTokens,
-                system = systemPrompt,
-                temperature = temperature,
-                messages = listOf(
-                    ClaudeMessage(role = "user", content = userMessage),
-                ),
-            )
+            val request =
+                ClaudeRequest(
+                    model = model,
+                    maxTokens = maxTokens,
+                    system = systemPrompt,
+                    temperature = temperature,
+                    messages =
+                        listOf(
+                            ClaudeMessage(role = "user", content = userMessage),
+                        ),
+                )
 
             val requestJson = json.encodeToString(ClaudeRequest.serializer(), request)
             val body = requestJson.toRequestBody("application/json".toMediaType())
@@ -105,24 +109,27 @@ class ClaudeClient(
             val response = api.createMessage(apiKey = apiKey, body = body)
             val latency = System.currentTimeMillis() - startTime
 
-            val text = response.content
-                ?.firstOrNull { it.type == "text" }
-                ?.text
-                ?: return NeuronResult.Error("Empty response from Claude")
+            val text =
+                response.content
+                    ?.firstOrNull { it.type == "text" }
+                    ?.text
+                    ?: return NeuronResult.Error("Empty response from Claude")
 
-            val totalTokens = (response.usage?.inputTokens ?: 0) +
-                (response.usage?.outputTokens ?: 0)
+            val totalTokens =
+                (response.usage?.inputTokens ?: 0) +
+                    (response.usage?.outputTokens ?: 0)
 
-            val llmResponse = try {
-                LLMResponse.fromJson(text)
-            } catch (e: Exception) {
-                LLMResponse(
-                    tier = "T3",
-                    modelId = model,
-                    latencyMs = latency,
-                    tokensUsed = totalTokens,
-                )
-            }
+            val llmResponse =
+                try {
+                    LLMResponse.fromJson(text)
+                } catch (e: Exception) {
+                    LLMResponse(
+                        tier = "T3",
+                        modelId = model,
+                        latencyMs = latency,
+                        tokensUsed = totalTokens,
+                    )
+                }
 
             NeuronResult.Success(
                 llmResponse.copy(

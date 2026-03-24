@@ -1,6 +1,7 @@
 package ai.neuron.brain.client
 
 import ai.neuron.BuildConfig
+import ai.neuron.brain.StructuredToolCallParser
 import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.NeuronResult
@@ -73,29 +74,35 @@ interface GeminiApi {
 
 class GeminiFlashClient(
     private val okHttpClient: OkHttpClient,
+    private val toolCallParser: StructuredToolCallParser? = null,
 ) {
     companion object {
         private const val TAG = "NeuronGemini"
-        /** Ordered list of models to try — separate per-model quotas on free tier. */
-        private val MODEL_CHAIN = listOf(
-            "gemini-2.0-flash",       // Fast, no thinking overhead, good enough for action selection
-            "gemini-2.5-flash",       // Better reasoning, thinking model
-            "gemini-2.5-flash-lite",  // Good balance of speed and capability
-            "gemini-2.0-flash-lite",  // Cheapest, fastest
-        )
+
+        // Ordered list of models to try — separate per-model quotas on free tier.
+        // Order: fast/cheap first (2.0-flash), better reasoning second (2.5-flash), lite variants last.
+        private val MODEL_CHAIN =
+            listOf(
+                "gemini-2.0-flash",
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+                "gemini-2.0-flash-lite",
+            )
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-        explicitNulls = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            explicitNulls = false
+        }
 
-    private val api: GeminiApi = Retrofit.Builder()
-        .baseUrl("https://generativelanguage.googleapis.com/")
-        .client(okHttpClient)
-        .build()
-        .create(GeminiApi::class.java)
+    private val api: GeminiApi =
+        Retrofit.Builder()
+            .baseUrl("https://generativelanguage.googleapis.com/")
+            .client(okHttpClient)
+            .build()
+            .create(GeminiApi::class.java)
 
     private val apiKey: String get() = BuildConfig.GEMINI_API_KEY
 
@@ -126,35 +133,40 @@ class GeminiFlashClient(
     ): NeuronResult<LLMResponse> {
         return try {
             Log.d(TAG, "Calling Gemini model: $model")
-            val request = GeminiRequest(
-                systemInstruction = GeminiContent(
-                    parts = listOf(GeminiPart(text = systemPrompt)),
-                ),
-                contents = listOf(
-                    GeminiContent(
-                        role = "user",
-                        parts = listOf(GeminiPart(text = userMessage)),
-                    ),
-                ),
-                generationConfig = GeminiGenerationConfig(
-                    temperature = temperature,
-                    maxOutputTokens = maxTokens,
-                    responseMimeType = "application/json",
-                ),
-            )
+            val request =
+                GeminiRequest(
+                    systemInstruction =
+                        GeminiContent(
+                            parts = listOf(GeminiPart(text = systemPrompt)),
+                        ),
+                    contents =
+                        listOf(
+                            GeminiContent(
+                                role = "user",
+                                parts = listOf(GeminiPart(text = userMessage)),
+                            ),
+                        ),
+                    generationConfig =
+                        GeminiGenerationConfig(
+                            temperature = temperature,
+                            maxOutputTokens = maxTokens,
+                            responseMimeType = "application/json",
+                        ),
+                )
 
             val requestJson = json.encodeToString(GeminiRequest.serializer(), request)
             val body = requestJson.toRequestBody("application/json".toMediaType())
 
             val startTime = System.currentTimeMillis()
-            val rawBody = try {
-                api.generateContent(model, apiKey, body)
-            } catch (e: retrofit2.HttpException) {
-                val latency = System.currentTimeMillis() - startTime
-                val errorBody = e.response()?.errorBody()?.string() ?: "no body"
-                Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
-                return NeuronResult.Error("Gemini API HTTP ${e.code()}: ${errorBody.take(200)}", e)
-            }
+            val rawBody =
+                try {
+                    api.generateContent(model, apiKey, body)
+                } catch (e: retrofit2.HttpException) {
+                    val latency = System.currentTimeMillis() - startTime
+                    val errorBody = e.response()?.errorBody()?.string() ?: "no body"
+                    Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
+                    return NeuronResult.Error("Gemini API HTTP ${e.code()}: ${errorBody.take(200)}", e)
+                }
             val latency = System.currentTimeMillis() - startTime
 
             val responseJson = rawBody.string()
@@ -165,27 +177,34 @@ class GeminiFlashClient(
             Log.d(TAG, "$model parts count: ${parts?.size}, thought parts: ${parts?.count { it.thought == true }}")
 
             // Gemini 2.5 Flash is a thinking model — skip thought parts, take the actual response
-            val text = parts
-                ?.lastOrNull { it.thought != true }
-                ?.text
-                ?: parts?.lastOrNull()?.text
-                ?: return NeuronResult.Error("Empty response from Gemini $model")
+            val text =
+                parts
+                    ?.lastOrNull { it.thought != true }
+                    ?.text
+                    ?: parts?.lastOrNull()?.text
+                    ?: return NeuronResult.Error("Empty response from Gemini $model")
 
             Log.d(TAG, "$model extracted text (${text.length} chars): ${text.take(300)}")
 
-            val llmResponse = parseAsLLMResponse(text)
+            // Try structured tool call parsing first (Gemini functionCall or legacy JSON)
+            val llmResponse = parseResponse(text)
             if (llmResponse == null) {
-                Log.w(TAG, "parseAsLLMResponse returned null for: ${text.take(500)}")
+                Log.w(TAG, "parseResponse returned null for: ${text.take(500)}")
                 return NeuronResult.Error("Failed to parse Gemini response as action JSON: ${text.take(200)}")
             }
 
-            val finalResponse = llmResponse.copy(
-                tier = "T2",
-                modelId = model,
-                latencyMs = latency,
-                tokensUsed = response.usageMetadata?.totalTokenCount,
+            val finalResponse =
+                llmResponse.copy(
+                    tier = "T2",
+                    modelId = model,
+                    latencyMs = latency,
+                    tokensUsed = response.usageMetadata?.totalTokenCount,
+                )
+            val action = finalResponse.action
+            Log.d(
+                TAG,
+                "$model success: action=${action?.actionType}, target=${action?.targetId}, value=${action?.value}",
             )
-            Log.d(TAG, "$model success: action=${finalResponse.action?.actionType}, target=${finalResponse.action?.targetId}, value=${finalResponse.action?.value}")
             NeuronResult.Success(finalResponse)
         } catch (e: Exception) {
             Log.e(TAG, "$model exception: ${e.javaClass.simpleName}: ${e.message}")
@@ -194,15 +213,26 @@ class GeminiFlashClient(
     }
 
     /**
-     * Try parsing as LLMResponse first; if the result has no action,
-     * try parsing as a raw LLMAction and wrap it.
-     * Handles markdown code fences and thinking model artifacts.
+     * Parse response using structured tool call parser first, then legacy JSON fallback.
      */
-    private fun parseAsLLMResponse(text: String): LLMResponse? {
+    private fun parseResponse(text: String): LLMResponse? {
         val cleaned = stripMarkdownFences(text).trim()
         Log.d(TAG, "Parsing cleaned text (${cleaned.length} chars): ${cleaned.take(200)}")
 
-        // Try as wrapped LLMResponse
+        // Try structured tool call parsing (handles Gemini functionCall, OpenAI, FunctionGemma, and legacy)
+        if (toolCallParser != null) {
+            val result = toolCallParser.parse(cleaned)
+            if (result is NeuronResult.Success) {
+                Log.d(TAG, "Parsed via StructuredToolCallParser: ${result.data.actionType}")
+                return LLMResponse(action = result.data)
+            }
+        }
+
+        // Fallback: legacy parsing for backward compatibility
+        return parseAsLLMResponseLegacy(cleaned)
+    }
+
+    private fun parseAsLLMResponseLegacy(cleaned: String): LLMResponse? {
         try {
             val resp = LLMResponse.fromJson(cleaned)
             if (resp.action != null) {
@@ -213,7 +243,6 @@ class GeminiFlashClient(
             Log.d(TAG, "Not an LLMResponse: ${e.message?.take(100)}")
         }
 
-        // Try as bare LLMAction
         try {
             val action = json.decodeFromString(LLMAction.serializer(), cleaned)
             Log.d(TAG, "Parsed as bare LLMAction: ${action.actionType}")
@@ -225,7 +254,6 @@ class GeminiFlashClient(
         return null
     }
 
-    /** Strip ```json ... ``` or ``` ... ``` code fences if present. */
     private fun stripMarkdownFences(text: String): String {
         val trimmed = text.trim()
         if (!trimmed.startsWith("```")) return trimmed

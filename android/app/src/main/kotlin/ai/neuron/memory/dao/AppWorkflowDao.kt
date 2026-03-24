@@ -10,7 +10,6 @@ import androidx.room.Update
 
 @Dao
 interface AppWorkflowDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(workflow: AppWorkflow): Long
 
@@ -21,7 +20,10 @@ interface AppWorkflowDao {
     suspend fun delete(workflow: AppWorkflow)
 
     @Query("SELECT * FROM app_workflows WHERE packageName = :packageName AND taskType = :taskType LIMIT 1")
-    suspend fun findByPackageAndTask(packageName: String, taskType: String): AppWorkflow?
+    suspend fun findByPackageAndTask(
+        packageName: String,
+        taskType: String,
+    ): AppWorkflow?
 
     @Query("SELECT * FROM app_workflows WHERE packageName = :packageName ORDER BY lastUsed DESC")
     suspend fun findByPackage(packageName: String): List<AppWorkflow>

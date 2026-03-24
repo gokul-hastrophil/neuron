@@ -1,5 +1,10 @@
 package ai.neuron.accessibility
 
+import ai.neuron.brain.NeuronBrainService
+import ai.neuron.brain.model.EngineState
+import ai.neuron.input.SpeechRecognitionManager
+import ai.neuron.input.VoiceInputController
+import ai.neuron.input.WakeWordService
 import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
@@ -9,11 +14,6 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import ai.neuron.brain.NeuronBrainService
-import ai.neuron.brain.model.EngineState
-import ai.neuron.input.SpeechRecognitionManager
-import ai.neuron.input.VoiceInputController
-import ai.neuron.input.WakeWordService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,7 +22,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class NeuronAccessibilityService : AccessibilityService() {
-
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var overlayManager: OverlayManager? = null
@@ -32,21 +31,25 @@ class NeuronAccessibilityService : AccessibilityService() {
     private var brainService: NeuronBrainService? = null
     private var brainBound = false
 
-    private val brainConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            val service = (binder as? NeuronBrainService.BrainBinder)?.getService() ?: return
-            brainService = service
-            brainBound = true
-            Log.i(TAG, "Bound to NeuronBrainService")
-            observeBrainState(service)
-        }
+    private val brainConnection =
+        object : ServiceConnection {
+            override fun onServiceConnected(
+                name: ComponentName?,
+                binder: IBinder?,
+            ) {
+                val service = (binder as? NeuronBrainService.BrainBinder)?.getService() ?: return
+                brainService = service
+                brainBound = true
+                Log.i(TAG, "Bound to NeuronBrainService")
+                observeBrainState(service)
+            }
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            brainService = null
-            brainBound = false
-            Log.i(TAG, "Disconnected from NeuronBrainService")
+            override fun onServiceDisconnected(name: ComponentName?) {
+                brainService = null
+                brainBound = false
+                Log.i(TAG, "Disconnected from NeuronBrainService")
+            }
         }
-    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -143,12 +146,13 @@ class NeuronAccessibilityService : AccessibilityService() {
             return
         }
 
-        val keyword = try {
-            ai.picovoice.porcupine.Porcupine.BuiltInKeyword.valueOf(keywordName)
-        } catch (e: IllegalArgumentException) {
-            Log.w(TAG, "Invalid wake word keyword: $keywordName, defaulting to JARVIS")
-            ai.picovoice.porcupine.Porcupine.BuiltInKeyword.JARVIS
-        }
+        val keyword =
+            try {
+                ai.picovoice.porcupine.Porcupine.BuiltInKeyword.valueOf(keywordName)
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Invalid wake word keyword: $keywordName, defaulting to JARVIS")
+                ai.picovoice.porcupine.Porcupine.BuiltInKeyword.JARVIS
+            }
 
         val wakeWord = WakeWordService(this, accessKey, keyword)
         wakeWord.onWakeWordDetected = {
@@ -208,6 +212,15 @@ class NeuronAccessibilityService : AccessibilityService() {
                     is EngineState.WaitingForUser -> {
                         overlay.updateState(OverlayManager.OverlayState.THINKING)
                         overlay.statusText.value = state.reason
+                    }
+                    is EngineState.ConfirmingAction -> {
+                        overlay.updateState(OverlayManager.OverlayState.CONFIRMING)
+                        val desc = "${state.action.actionType}: ${state.action.targetText ?: state.action.targetId ?: ""}"
+                        overlay.confirmationPrompt.value = "Step ${state.stepIndex + 1}: $desc"
+                    }
+                    is EngineState.AwaitingPlanApproval -> {
+                        overlay.updateState(OverlayManager.OverlayState.CONFIRMING)
+                        overlay.confirmationPrompt.value = "Approve plan with ${state.actions.size} steps?"
                     }
                     is EngineState.Done -> {
                         overlay.updateState(OverlayManager.OverlayState.DONE)

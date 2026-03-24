@@ -23,16 +23,35 @@ data class LLMAction(
 
 @Serializable
 enum class ActionType {
-    @SerialName("tap") TAP,
-    @SerialName("type") TYPE,
-    @SerialName("swipe") SWIPE,
-    @SerialName("launch") LAUNCH,
-    @SerialName("navigate") NAVIGATE,
-    @SerialName("wait") WAIT,
-    @SerialName("done") DONE,
-    @SerialName("error") ERROR,
-    @SerialName("confirm") CONFIRM,
-    @SerialName("tool_call") TOOL_CALL,
+    @SerialName("tap")
+    TAP,
+
+    @SerialName("type")
+    TYPE,
+
+    @SerialName("swipe")
+    SWIPE,
+
+    @SerialName("launch")
+    LAUNCH,
+
+    @SerialName("navigate")
+    NAVIGATE,
+
+    @SerialName("wait")
+    WAIT,
+
+    @SerialName("done")
+    DONE,
+
+    @SerialName("error")
+    ERROR,
+
+    @SerialName("confirm")
+    CONFIRM,
+
+    @SerialName("tool_call")
+    TOOL_CALL,
 }
 
 /**
@@ -58,11 +77,12 @@ data class LLMResponse(
     @SerialName("tokens_used") val tokensUsed: Int? = null,
 ) {
     companion object {
-        private val json = Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-            explicitNulls = false
-        }
+        private val json =
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = false
+                explicitNulls = false
+            }
 
         fun fromJson(jsonString: String): LLMResponse = json.decodeFromString(jsonString)
     }

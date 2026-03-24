@@ -11,17 +11,17 @@ class UITreeReader(
     private val service: NeuronAccessibilityService,
     private val maxDepth: Int = MAX_DEPTH,
 ) {
-
     fun getUITree(): UITree {
         val root = service.rootInActiveWindow ?: return UITree.empty()
         val packageName = root.packageName?.toString().orEmpty()
 
         return try {
             val nodes = traverseAndPrune(root, depth = 0)
-            val tree = UITree(
-                nodes = nodes,
-                packageName = packageName,
-            )
+            val tree =
+                UITree(
+                    nodes = nodes,
+                    packageName = packageName,
+                )
             Log.d(TAG, "UITree captured: ${flatCount(nodes)} nodes from $packageName")
             tree
         } finally {
@@ -54,7 +54,10 @@ class UITreeReader(
         return listOf(uiNode)
     }
 
-    private fun nodeToUINode(node: AccessibilityNodeInfo, children: List<UINode>): UINode {
+    private fun nodeToUINode(
+        node: AccessibilityNodeInfo,
+        children: List<UINode>,
+    ): UINode {
         val rect = Rect()
         node.getBoundsInScreen(rect)
 

@@ -13,19 +13,18 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("Navigate action mapping")
 class NavigateEnterMappingTest {
-
     @Nested
     @DisplayName("NAVIGATE enter")
     inner class NavigateEnter {
-
         @Test
         fun should_mapToPressKey_when_navigateEnter() {
-            val action = LLMAction(
-                actionType = ActionType.NAVIGATE,
-                value = "enter",
-                confidence = 0.9,
-                reasoning = "Submit search",
-            )
+            val action =
+                LLMAction(
+                    actionType = ActionType.NAVIGATE,
+                    value = "enter",
+                    confidence = 0.9,
+                    reasoning = "Submit search",
+                )
             val result = ActionMapper.mapToNeuronAction(action)
             assertNotNull(result)
             assertTrue(result is NeuronAction.PressKey, "Expected PressKey, got $result")
@@ -34,12 +33,13 @@ class NavigateEnterMappingTest {
 
         @Test
         fun should_mapToPressKey_when_navigateSubmit() {
-            val action = LLMAction(
-                actionType = ActionType.NAVIGATE,
-                value = "submit",
-                confidence = 0.9,
-                reasoning = "Submit form",
-            )
+            val action =
+                LLMAction(
+                    actionType = ActionType.NAVIGATE,
+                    value = "submit",
+                    confidence = 0.9,
+                    reasoning = "Submit form",
+                )
             val result = ActionMapper.mapToNeuronAction(action)
             assertNotNull(result)
             assertTrue(result is NeuronAction.PressKey)
@@ -50,15 +50,15 @@ class NavigateEnterMappingTest {
     @Nested
     @DisplayName("NAVIGATE existing actions")
     inner class ExistingNavigate {
-
         @Test
         fun should_mapToGlobalAction_when_navigateHome() {
-            val action = LLMAction(
-                actionType = ActionType.NAVIGATE,
-                value = "home",
-                confidence = 0.9,
-                reasoning = "Go home",
-            )
+            val action =
+                LLMAction(
+                    actionType = ActionType.NAVIGATE,
+                    value = "home",
+                    confidence = 0.9,
+                    reasoning = "Go home",
+                )
             val result = ActionMapper.mapToNeuronAction(action)
             assertNotNull(result)
             assertTrue(result is NeuronAction.GlobalAction)
@@ -67,12 +67,13 @@ class NavigateEnterMappingTest {
 
         @Test
         fun should_mapToGlobalAction_when_navigateNotifications() {
-            val action = LLMAction(
-                actionType = ActionType.NAVIGATE,
-                value = "notifications",
-                confidence = 0.9,
-                reasoning = "Open notifications",
-            )
+            val action =
+                LLMAction(
+                    actionType = ActionType.NAVIGATE,
+                    value = "notifications",
+                    confidence = 0.9,
+                    reasoning = "Open notifications",
+                )
             val result = ActionMapper.mapToNeuronAction(action)
             assertNotNull(result)
             assertTrue(result is NeuronAction.GlobalAction)
@@ -81,12 +82,13 @@ class NavigateEnterMappingTest {
 
         @Test
         fun should_mapToGlobalAction_when_navigateBack() {
-            val action = LLMAction(
-                actionType = ActionType.NAVIGATE,
-                value = "back",
-                confidence = 0.9,
-                reasoning = "Go back",
-            )
+            val action =
+                LLMAction(
+                    actionType = ActionType.NAVIGATE,
+                    value = "back",
+                    confidence = 0.9,
+                    reasoning = "Go back",
+                )
             val result = ActionMapper.mapToNeuronAction(action)
             assertNotNull(result)
             assertTrue(result is NeuronAction.GlobalAction)

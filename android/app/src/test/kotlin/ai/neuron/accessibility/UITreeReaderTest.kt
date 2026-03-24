@@ -1,6 +1,5 @@
 package ai.neuron.accessibility
 
-import ai.neuron.accessibility.model.Bounds
 import ai.neuron.accessibility.model.UINode
 import ai.neuron.accessibility.model.UITree
 import android.graphics.Rect
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class UITreeReaderTest {
-
     private lateinit var mockService: NeuronAccessibilityService
     private lateinit var uiTreeReader: UITreeReader
 
@@ -39,13 +37,14 @@ class UITreeReaderTest {
 
     @Test
     fun should_returnSingleNode_when_rootHasNoChildren() {
-        val mockRoot = createMockNode(
-            resourceId = "android:id/content",
-            text = "Hello",
-            visible = true,
-            clickable = true,
-            childCount = 0,
-        )
+        val mockRoot =
+            createMockNode(
+                resourceId = "android:id/content",
+                text = "Hello",
+                visible = true,
+                clickable = true,
+                childCount = 0,
+            )
         every { mockService.rootInActiveWindow } returns mockRoot
 
         val result = uiTreeReader.getUITree()
@@ -59,26 +58,29 @@ class UITreeReaderTest {
 
     @Test
     fun should_pruneInvisibleNodes_when_treeContainsInvisibleElements() {
-        val invisibleChild = createMockNode(
-            resourceId = "hidden_node",
-            visible = false,
-            clickable = false,
-            childCount = 0,
-        )
-        val visibleChild = createMockNode(
-            resourceId = "visible_node",
-            text = "Visible",
-            visible = true,
-            clickable = true,
-            childCount = 0,
-        )
-        val root = createMockNode(
-            resourceId = "root",
-            visible = true,
-            clickable = false,
-            childCount = 2,
-            children = listOf(invisibleChild, visibleChild),
-        )
+        val invisibleChild =
+            createMockNode(
+                resourceId = "hidden_node",
+                visible = false,
+                clickable = false,
+                childCount = 0,
+            )
+        val visibleChild =
+            createMockNode(
+                resourceId = "visible_node",
+                text = "Visible",
+                visible = true,
+                clickable = true,
+                childCount = 0,
+            )
+        val root =
+            createMockNode(
+                resourceId = "root",
+                visible = true,
+                clickable = false,
+                childCount = 2,
+                children = listOf(invisibleChild, visibleChild),
+            )
         every { mockService.rootInActiveWindow } returns root
 
         val result = uiTreeReader.getUITree()
@@ -92,30 +94,33 @@ class UITreeReaderTest {
 
     @Test
     fun should_pruneNonInteractiveLeaves_when_leafIsNotClickableOrEditable() {
-        val nonInteractiveLeaf = createMockNode(
-            resourceId = "decoration",
-            visible = true,
-            clickable = false,
-            scrollable = false,
-            editable = false,
-            text = null,
-            contentDescription = null,
-            childCount = 0,
-        )
-        val interactiveLeaf = createMockNode(
-            resourceId = "button",
-            visible = true,
-            clickable = true,
-            text = "Click me",
-            childCount = 0,
-        )
-        val root = createMockNode(
-            resourceId = "root",
-            visible = true,
-            clickable = false,
-            childCount = 2,
-            children = listOf(nonInteractiveLeaf, interactiveLeaf),
-        )
+        val nonInteractiveLeaf =
+            createMockNode(
+                resourceId = "decoration",
+                visible = true,
+                clickable = false,
+                scrollable = false,
+                editable = false,
+                text = null,
+                contentDescription = null,
+                childCount = 0,
+            )
+        val interactiveLeaf =
+            createMockNode(
+                resourceId = "button",
+                visible = true,
+                clickable = true,
+                text = "Click me",
+                childCount = 0,
+            )
+        val root =
+            createMockNode(
+                resourceId = "root",
+                visible = true,
+                clickable = false,
+                childCount = 2,
+                children = listOf(nonInteractiveLeaf, interactiveLeaf),
+            )
         every { mockService.rootInActiveWindow } returns root
 
         val result = uiTreeReader.getUITree()
@@ -127,20 +132,22 @@ class UITreeReaderTest {
 
     @Test
     fun should_keepNonInteractiveLeaf_when_itHasText() {
-        val textNode = createMockNode(
-            resourceId = "label",
-            visible = true,
-            clickable = false,
-            text = "Important label",
-            childCount = 0,
-        )
-        val root = createMockNode(
-            resourceId = "root",
-            visible = true,
-            clickable = false,
-            childCount = 1,
-            children = listOf(textNode),
-        )
+        val textNode =
+            createMockNode(
+                resourceId = "label",
+                visible = true,
+                clickable = false,
+                text = "Important label",
+                childCount = 0,
+            )
+        val root =
+            createMockNode(
+                resourceId = "root",
+                visible = true,
+                clickable = false,
+                childCount = 1,
+                children = listOf(textNode),
+            )
         every { mockService.rootInActiveWindow } returns root
 
         val result = uiTreeReader.getUITree()
@@ -156,18 +163,30 @@ class UITreeReaderTest {
         // Create a chain 20 levels deep; with maxDepth=15, bottom nodes should be pruned
         val deepReader = UITreeReader(mockService, maxDepth = 3)
         val deepChild = createMockNode(resourceId = "level3", visible = true, clickable = true, childCount = 0)
-        val midChild = createMockNode(
-            resourceId = "level2", visible = true, clickable = true, childCount = 1,
-            children = listOf(deepChild),
-        )
-        val topChild = createMockNode(
-            resourceId = "level1", visible = true, clickable = false, childCount = 1,
-            children = listOf(midChild),
-        )
-        val root = createMockNode(
-            resourceId = "level0", visible = true, clickable = false, childCount = 1,
-            children = listOf(topChild),
-        )
+        val midChild =
+            createMockNode(
+                resourceId = "level2",
+                visible = true,
+                clickable = true,
+                childCount = 1,
+                children = listOf(deepChild),
+            )
+        val topChild =
+            createMockNode(
+                resourceId = "level1",
+                visible = true,
+                clickable = false,
+                childCount = 1,
+                children = listOf(midChild),
+            )
+        val root =
+            createMockNode(
+                resourceId = "level0",
+                visible = true,
+                clickable = false,
+                childCount = 1,
+                children = listOf(topChild),
+            )
         every { mockService.rootInActiveWindow } returns root
 
         val result = deepReader.getUITree()
@@ -182,20 +201,22 @@ class UITreeReaderTest {
 
     @Test
     fun should_serializeTreeAsValidJson_when_complexTree() {
-        val child = createMockNode(
-            resourceId = "com.whatsapp:id/send_btn",
-            text = "Send",
-            visible = true,
-            clickable = true,
-            childCount = 0,
-        )
-        val root = createMockNode(
-            resourceId = "android:id/content",
-            visible = true,
-            clickable = false,
-            childCount = 1,
-            children = listOf(child),
-        )
+        val child =
+            createMockNode(
+                resourceId = "com.whatsapp:id/send_btn",
+                text = "Send",
+                visible = true,
+                clickable = true,
+                childCount = 0,
+            )
+        val root =
+            createMockNode(
+                resourceId = "android:id/content",
+                visible = true,
+                clickable = false,
+                childCount = 1,
+                children = listOf(child),
+            )
         every { mockService.rootInActiveWindow } returns root
         every { root.packageName } returns "com.whatsapp"
 
@@ -213,21 +234,23 @@ class UITreeReaderTest {
 
     @Test
     fun should_markPasswordField_when_nodeIsPassword() {
-        val passwordNode = createMockNode(
-            resourceId = "password_input",
-            visible = true,
-            clickable = true,
-            editable = true,
-            isPassword = true,
-            childCount = 0,
-        )
-        val root = createMockNode(
-            resourceId = "root",
-            visible = true,
-            clickable = false,
-            childCount = 1,
-            children = listOf(passwordNode),
-        )
+        val passwordNode =
+            createMockNode(
+                resourceId = "password_input",
+                visible = true,
+                clickable = true,
+                editable = true,
+                isPassword = true,
+                childCount = 0,
+            )
+        val root =
+            createMockNode(
+                resourceId = "root",
+                visible = true,
+                clickable = false,
+                childCount = 1,
+                children = listOf(passwordNode),
+            )
         every { mockService.rootInActiveWindow } returns root
 
         val result = uiTreeReader.getUITree()
@@ -241,12 +264,13 @@ class UITreeReaderTest {
 
     @Test
     fun should_capturePackageName_when_rootAvailable() {
-        val root = createMockNode(
-            resourceId = "root",
-            visible = true,
-            clickable = false,
-            childCount = 0,
-        )
+        val root =
+            createMockNode(
+                resourceId = "root",
+                visible = true,
+                clickable = false,
+                childCount = 0,
+            )
         every { mockService.rootInActiveWindow } returns root
         every { root.packageName } returns "com.google.android.apps.maps"
 

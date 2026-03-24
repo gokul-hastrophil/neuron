@@ -11,33 +11,35 @@ import javax.inject.Singleton
  * and low-confidence actions always require confirmation.
  */
 @Singleton
-class ConfirmationGate @Inject constructor() {
+class ConfirmationGate
+    @Inject
+    constructor() {
+        companion object {
+            private const val CONFIDENCE_THRESHOLD = 0.7
 
-    companion object {
-        private const val CONFIDENCE_THRESHOLD = 0.7
-
-        private val DANGEROUS_KEYWORDS = listOf(
-            "send", "delete", "remove", "pay", "transfer",
-            "confirm", "purchase", "buy", "submit", "uninstall",
-        )
-    }
-
-    fun requiresConfirmation(action: LLMAction): Boolean {
-        // Explicit flag from LLM
-        if (action.requiresConfirmation) return true
-
-        // Sensitive actions always need confirmation
-        if (action.sensitive) return true
-
-        // Low confidence — ask the user
-        if (action.confidence < CONFIDENCE_THRESHOLD) return true
-
-        // Check if tapping a dangerous button
-        if (action.actionType == ActionType.TAP) {
-            val text = action.targetText?.lowercase() ?: return false
-            return DANGEROUS_KEYWORDS.any { keyword -> text.contains(keyword) }
+            private val DANGEROUS_KEYWORDS =
+                listOf(
+                    "send", "delete", "remove", "pay", "transfer",
+                    "confirm", "purchase", "buy", "submit", "uninstall",
+                )
         }
 
-        return false
+        fun requiresConfirmation(action: LLMAction): Boolean {
+            // Explicit flag from LLM
+            if (action.requiresConfirmation) return true
+
+            // Sensitive actions always need confirmation
+            if (action.sensitive) return true
+
+            // Low confidence — ask the user
+            if (action.confidence < CONFIDENCE_THRESHOLD) return true
+
+            // Check if tapping a dangerous button
+            if (action.actionType == ActionType.TAP) {
+                val text = action.targetText?.lowercase() ?: return false
+                return DANGEROUS_KEYWORDS.any { keyword -> text.contains(keyword) }
+            }
+
+            return false
+        }
     }
-}

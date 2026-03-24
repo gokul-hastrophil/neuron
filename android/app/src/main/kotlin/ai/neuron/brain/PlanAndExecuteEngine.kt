@@ -14,162 +14,195 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PlanAndExecuteEngine @Inject constructor(
-    private val router: LLMRouter,
-    private val classifier: IntentClassifier,
-    private val uiProvider: UIProvider,
-    private val actionDispatcher: ActionDispatcher,
-    private val memoryExtractor: MemoryExtractor,
-) {
-    companion object {
-        const val MAX_STEPS = 20
-        const val TOTAL_TIMEOUT_MS = 60_000L
-        const val CONFIDENCE_THRESHOLD = 0.7
-        const val MAX_REPEATED_FAILURES = 3
-        const val UI_SETTLE_DELAY_MS = 800L
-    }
+class PlanAndExecuteEngine
+    @Inject
+    constructor(
+        private val router: LLMRouter,
+        private val classifier: IntentClassifier,
+        private val uiProvider: UIProvider,
+        private val actionDispatcher: ActionDispatcher,
+        private val memoryExtractor: MemoryExtractor,
+    ) {
+        companion object {
+            const val MAX_STEPS = 20
+            const val TOTAL_TIMEOUT_MS = 60_000L
+            const val CONFIDENCE_THRESHOLD = 0.7
+            const val MAX_REPEATED_FAILURES = 3
+            const val UI_SETTLE_DELAY_MS = 800L
+        }
 
-    interface UIProvider {
-        suspend fun getCurrentUITree(): UITree
-    }
+        interface UIProvider {
+            suspend fun getCurrentUITree(): UITree
+        }
 
-    interface ActionDispatcher {
-        suspend fun dispatch(action: LLMAction): Boolean
-    }
+        interface ActionDispatcher {
+            suspend fun dispatch(action: LLMAction): Boolean
+        }
 
-    private val _stepLogs = mutableListOf<StepLog>()
-    val stepLogs: List<StepLog> get() = _stepLogs.toList()
+        /**
+         * Callback for HITL confirmation. The engine suspends until the user
+         * approves or rejects the action/plan.
+         */
+        interface ConfirmationCallback {
+            /** Ask user to approve a single action. Returns true if approved. */
+            suspend fun confirmAction(
+                stepIndex: Int,
+                action: LLMAction,
+            ): Boolean
 
-    fun execute(command: String): Flow<EngineState> = flow {
-        _stepLogs.clear()
-        emit(EngineState.Planning(command))
+            /** Ask user to approve a full plan. Returns true if approved. */
+            suspend fun confirmPlan(actions: List<LLMAction>): Boolean
+        }
 
-        val classification = classifier.classify(command)
-        val startTime = System.currentTimeMillis()
-        var stepIndex = 0
-        var consecutiveFailures = 0
-        var lastActionKey = ""
+        var executionMode: ExecutionMode = ExecutionMode.AUTONOMOUS
+        var confirmationCallback: ConfirmationCallback? = null
 
-        while (stepIndex < MAX_STEPS) {
-            // Abort: total timeout
-            if (System.currentTimeMillis() - startTime > TOTAL_TIMEOUT_MS) {
-                emit(EngineState.Error("Total timeout (${TOTAL_TIMEOUT_MS}ms) exceeded"))
-                return@flow
-            }
+        private val _stepLogs = mutableListOf<StepLog>()
+        val stepLogs: List<StepLog> get() = _stepLogs.toList()
 
-            // Replanning: re-read UI tree each iteration for fresh state
-            val uiTree = uiProvider.getCurrentUITree()
-            val stepStart = System.currentTimeMillis()
+        fun execute(command: String): Flow<EngineState> =
+            flow {
+                _stepLogs.clear()
+                emit(EngineState.Planning(command))
 
-            val routeResult = router.route(command, uiTree, classification)
+                val classification = classifier.classify(command)
+                val startTime = System.currentTimeMillis()
+                var stepIndex = 0
+                var consecutiveFailures = 0
+                var lastActionKey = ""
 
-            when (routeResult) {
-                is NeuronResult.Error -> {
-                    emit(EngineState.Error(routeResult.message))
-                    return@flow
-                }
-                is NeuronResult.Success -> {
-                    val action = routeResult.data.action
-                        ?: run {
-                            emit(EngineState.Error("LLM returned no action"))
+                while (stepIndex < MAX_STEPS) {
+                    // Abort: total timeout
+                    if (System.currentTimeMillis() - startTime > TOTAL_TIMEOUT_MS) {
+                        emit(EngineState.Error("Total timeout (${TOTAL_TIMEOUT_MS}ms) exceeded"))
+                        return@flow
+                    }
+
+                    // Replanning: re-read UI tree each iteration for fresh state
+                    val uiTree = uiProvider.getCurrentUITree()
+                    val stepStart = System.currentTimeMillis()
+
+                    val routeResult = router.route(command, uiTree, classification)
+
+                    when (routeResult) {
+                        is NeuronResult.Error -> {
+                            emit(EngineState.Error(routeResult.message))
                             return@flow
                         }
+                        is NeuronResult.Success -> {
+                            val action =
+                                routeResult.data.action
+                                    ?: run {
+                                        emit(EngineState.Error("LLM returned no action"))
+                                        return@flow
+                                    }
 
-                    when (action.actionType) {
-                        ActionType.DONE -> {
-                            logStep(stepIndex, uiTree, routeResult.data.tier, action, true, stepStart)
-                            val totalDuration = System.currentTimeMillis() - startTime
-                            memoryExtractor.extractFromCompletedTask(command, _stepLogs, totalDuration)
-                            emit(EngineState.Done(action.reasoning ?: "Task completed"))
-                            return@flow
-                        }
-                        ActionType.ERROR -> {
-                            logStep(stepIndex, uiTree, routeResult.data.tier, action, false, stepStart)
-                            emit(EngineState.Error(action.reasoning ?: "LLM reported error"))
-                            return@flow
-                        }
-                        ActionType.CONFIRM -> {
-                            logStep(stepIndex, uiTree, routeResult.data.tier, action, true, stepStart)
-                            emit(EngineState.WaitingForUser(action.reasoning ?: "Confirmation needed"))
-                            return@flow
-                        }
-                        else -> {
-                            // confidence=0.0 means not specified by LLM — trust the action
-                            val effectiveConfidence = if (action.confidence == 0.0) 1.0 else action.confidence
-                            if (effectiveConfidence < CONFIDENCE_THRESHOLD) {
-                                logStep(stepIndex, uiTree, routeResult.data.tier, action, false, stepStart)
-                                emit(EngineState.WaitingForUser("Low confidence: ${action.reasoning}"))
-                                return@flow
-                            }
-
-                            emit(EngineState.Executing(stepIndex, action))
-
-                            val success = actionDispatcher.dispatch(action)
-                            logStep(stepIndex, uiTree, routeResult.data.tier, action, success, stepStart)
-
-                            // Pattern-matched single-shot actions: LAUNCH and NAVIGATE
-                            // complete immediately after successful execution (no replanning needed)
-                            if (success && routeResult.data.modelId == "pattern-match" &&
-                                action.actionType in listOf(ActionType.LAUNCH, ActionType.NAVIGATE)
-                            ) {
-                                val totalDuration = System.currentTimeMillis() - startTime
-                                memoryExtractor.extractFromCompletedTask(command, _stepLogs, totalDuration)
-                                emit(EngineState.Done(action.reasoning ?: "Done"))
-                                return@flow
-                            }
-
-                            if (!success) {
-                                // Abort: repeated failures on same action
-                                val actionKey = "${action.actionType}:${action.targetId}"
-                                if (actionKey == lastActionKey) {
-                                    consecutiveFailures++
-                                } else {
-                                    consecutiveFailures = 1
-                                    lastActionKey = actionKey
-                                }
-
-                                if (consecutiveFailures >= MAX_REPEATED_FAILURES) {
-                                    emit(EngineState.Error("Repeated failures ($MAX_REPEATED_FAILURES) on same action"))
+                            when (action.actionType) {
+                                ActionType.DONE -> {
+                                    logStep(stepIndex, uiTree, routeResult.data.tier, action, true, stepStart)
+                                    val totalDuration = System.currentTimeMillis() - startTime
+                                    memoryExtractor.extractFromCompletedTask(command, _stepLogs, totalDuration)
+                                    emit(EngineState.Done(action.reasoning ?: "Task completed"))
                                     return@flow
                                 }
+                                ActionType.ERROR -> {
+                                    logStep(stepIndex, uiTree, routeResult.data.tier, action, false, stepStart)
+                                    emit(EngineState.Error(action.reasoning ?: "LLM reported error"))
+                                    return@flow
+                                }
+                                ActionType.CONFIRM -> {
+                                    logStep(stepIndex, uiTree, routeResult.data.tier, action, true, stepStart)
+                                    emit(EngineState.WaitingForUser(action.reasoning ?: "Confirmation needed"))
+                                    return@flow
+                                }
+                                else -> {
+                                    // confidence=0.0 means not specified by LLM — trust the action
+                                    val effectiveConfidence = if (action.confidence == 0.0) 1.0 else action.confidence
+                                    if (effectiveConfidence < CONFIDENCE_THRESHOLD) {
+                                        logStep(stepIndex, uiTree, routeResult.data.tier, action, false, stepStart)
+                                        emit(EngineState.WaitingForUser("Low confidence: ${action.reasoning}"))
+                                        return@flow
+                                    }
 
-                                emit(EngineState.Error("Action dispatch failed at step $stepIndex"))
-                                return@flow
-                            } else {
-                                consecutiveFailures = 0
-                                lastActionKey = ""
+                                    // HITL: In SUPERVISED mode, ask user before each action
+                                    if (executionMode == ExecutionMode.SUPERVISED) {
+                                        emit(EngineState.ConfirmingAction(stepIndex, action))
+                                        val approved = confirmationCallback?.confirmAction(stepIndex, action) ?: true
+                                        if (!approved) {
+                                            logStep(stepIndex, uiTree, routeResult.data.tier, action, false, stepStart)
+                                            emit(EngineState.Done("User cancelled action"))
+                                            return@flow
+                                        }
+                                    }
+
+                                    emit(EngineState.Executing(stepIndex, action))
+
+                                    val success = actionDispatcher.dispatch(action)
+                                    logStep(stepIndex, uiTree, routeResult.data.tier, action, success, stepStart)
+
+                                    // Pattern-matched single-shot actions: LAUNCH and NAVIGATE
+                                    // complete immediately after successful execution (no replanning needed)
+                                    if (success && routeResult.data.modelId == "pattern-match" &&
+                                        action.actionType in listOf(ActionType.LAUNCH, ActionType.NAVIGATE)
+                                    ) {
+                                        val totalDuration = System.currentTimeMillis() - startTime
+                                        memoryExtractor.extractFromCompletedTask(command, _stepLogs, totalDuration)
+                                        emit(EngineState.Done(action.reasoning ?: "Done"))
+                                        return@flow
+                                    }
+
+                                    if (!success) {
+                                        // Abort: repeated failures on same action
+                                        val actionKey = "${action.actionType}:${action.targetId}"
+                                        if (actionKey == lastActionKey) {
+                                            consecutiveFailures++
+                                        } else {
+                                            consecutiveFailures = 1
+                                            lastActionKey = actionKey
+                                        }
+
+                                        if (consecutiveFailures >= MAX_REPEATED_FAILURES) {
+                                            emit(EngineState.Error("Repeated failures ($MAX_REPEATED_FAILURES) on same action"))
+                                            return@flow
+                                        }
+
+                                        emit(EngineState.Error("Action dispatch failed at step $stepIndex"))
+                                        return@flow
+                                    } else {
+                                        consecutiveFailures = 0
+                                        lastActionKey = ""
+                                    }
+
+                                    emit(EngineState.Verifying(stepIndex))
+                                    // Let UI settle after action before re-reading tree
+                                    delay(UI_SETTLE_DELAY_MS)
+                                    stepIndex++
+                                }
                             }
-
-                            emit(EngineState.Verifying(stepIndex))
-                            // Let UI settle after action before re-reading tree
-                            delay(UI_SETTLE_DELAY_MS)
-                            stepIndex++
                         }
                     }
                 }
+
+                emit(EngineState.Error("Max steps ($MAX_STEPS) exceeded"))
             }
+
+        private fun logStep(
+            stepIndex: Int,
+            uiTree: UITree,
+            tier: String?,
+            action: LLMAction,
+            success: Boolean,
+            stepStartTime: Long,
+        ) {
+            _stepLogs.add(
+                StepLog(
+                    stepIndex = stepIndex,
+                    uiTreeHash = uiTree.hashCode(),
+                    llmTier = tier,
+                    action = action,
+                    success = success,
+                    durationMs = System.currentTimeMillis() - stepStartTime,
+                ),
+            )
         }
-
-        emit(EngineState.Error("Max steps ($MAX_STEPS) exceeded"))
     }
-
-    private fun logStep(
-        stepIndex: Int,
-        uiTree: UITree,
-        tier: String?,
-        action: LLMAction,
-        success: Boolean,
-        stepStartTime: Long,
-    ) {
-        _stepLogs.add(
-            StepLog(
-                stepIndex = stepIndex,
-                uiTreeHash = uiTree.hashCode(),
-                llmTier = tier,
-                action = action,
-                success = success,
-                durationMs = System.currentTimeMillis() - stepStartTime,
-            ),
-        )
-    }
-}

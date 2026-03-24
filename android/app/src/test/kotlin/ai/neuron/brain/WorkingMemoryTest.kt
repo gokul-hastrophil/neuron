@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class WorkingMemoryTest {
-
     private lateinit var memory: WorkingMemory
 
     @BeforeEach
@@ -22,7 +21,6 @@ class WorkingMemoryTest {
     @Nested
     @DisplayName("Current task")
     inner class CurrentTask {
-
         @Test
         fun should_storeAndRetrieveTask_when_taskSet() {
             memory.setCurrentTask("open WhatsApp and message Mom")
@@ -45,7 +43,6 @@ class WorkingMemoryTest {
     @Nested
     @DisplayName("Action history")
     inner class ActionHistory {
-
         @Test
         fun should_recordActions_when_actionsAdded() {
             val action = LLMAction(actionType = ActionType.TAP, targetId = "btn", confidence = 0.9)
@@ -78,7 +75,6 @@ class WorkingMemoryTest {
     @Nested
     @DisplayName("Screen state hash")
     inner class ScreenStateHash {
-
         @Test
         fun should_storeScreenHash_when_set() {
             memory.setScreenStateHash(12345)
@@ -101,7 +97,6 @@ class WorkingMemoryTest {
     @Nested
     @DisplayName("Serialization")
     inner class Serialization {
-
         @Test
         fun should_serializeAndDeserialize_when_roundtrip() {
             memory.setCurrentTask("test task")

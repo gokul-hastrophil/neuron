@@ -7,13 +7,10 @@ import ai.neuron.accessibility.model.ScrollDirection
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Rect
-import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -21,7 +18,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ActionExecutorTest {
-
     private lateinit var mockService: NeuronAccessibilityService
     private lateinit var mockGestureFactory: ActionExecutor.GestureFactory
     private lateinit var executor: ActionExecutor
@@ -37,10 +33,10 @@ class ActionExecutorTest {
 
     @Nested
     inner class TapByNodeId {
-
         @Test
         fun should_returnSuccess_when_nodeFoundAndClicked() {
             val targetNode = createMockNode(resourceId = "com.app:id/button", clickable = true)
+            every { targetNode.performAction(AccessibilityNodeInfo.ACTION_CLICK) } returns true
             stubFindNode(targetNode)
 
             val result = executor.execute(NeuronAction.Tap(nodeId = "com.app:id/button"))
@@ -62,15 +58,18 @@ class ActionExecutorTest {
 
         @Test
         fun should_clickNearestClickableAncestor_when_nodeNotClickable() {
-            val nonClickableNode = createMockNode(
-                resourceId = "com.app:id/label",
-                clickable = false,
-            )
-            val clickableParent = createMockNode(
-                resourceId = "com.app:id/row",
-                clickable = true,
-            )
+            val nonClickableNode =
+                createMockNode(
+                    resourceId = "com.app:id/label",
+                    clickable = false,
+                )
+            val clickableParent =
+                createMockNode(
+                    resourceId = "com.app:id/row",
+                    clickable = true,
+                )
             every { nonClickableNode.parent } returns clickableParent
+            every { clickableParent.performAction(AccessibilityNodeInfo.ACTION_CLICK) } returns true
             stubFindNode(nonClickableNode)
 
             val result = executor.execute(NeuronAction.Tap(nodeId = "com.app:id/label"))
@@ -81,10 +80,11 @@ class ActionExecutorTest {
 
         @Test
         fun should_returnError_when_nodeAndAncestorsNotClickable() {
-            val nonClickableNode = createMockNode(
-                resourceId = "com.app:id/decoration",
-                clickable = false,
-            )
+            val nonClickableNode =
+                createMockNode(
+                    resourceId = "com.app:id/decoration",
+                    clickable = false,
+                )
             every { nonClickableNode.parent } returns null
             stubFindNode(nonClickableNode)
 
@@ -100,7 +100,6 @@ class ActionExecutorTest {
 
     @Nested
     inner class TapByCoordinate {
-
         @Test
         fun should_returnSuccess_when_gestureDispatched() {
             val mockGesture = mockk<GestureDescription>()
@@ -129,19 +128,20 @@ class ActionExecutorTest {
 
     @Nested
     inner class TypeText {
-
         @Test
         fun should_returnSuccess_when_textSetOnEditableNode() {
-            val editableNode = createMockNode(
-                resourceId = "com.app:id/input",
-                editable = true,
-            )
+            val editableNode =
+                createMockNode(
+                    resourceId = "com.app:id/input",
+                    editable = true,
+                )
             stubFindNode(editableNode)
             every { editableNode.performAction(any(), any()) } returns true
 
-            val result = executor.execute(
-                NeuronAction.TypeText(nodeId = "com.app:id/input", text = "Hello World")
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.TypeText(nodeId = "com.app:id/input", text = "Hello World"),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify {
@@ -154,15 +154,17 @@ class ActionExecutorTest {
 
         @Test
         fun should_returnError_when_nodeNotEditable() {
-            val nonEditableNode = createMockNode(
-                resourceId = "com.app:id/label",
-                editable = false,
-            )
+            val nonEditableNode =
+                createMockNode(
+                    resourceId = "com.app:id/label",
+                    editable = false,
+                )
             stubFindNode(nonEditableNode)
 
-            val result = executor.execute(
-                NeuronAction.TypeText(nodeId = "com.app:id/label", text = "test")
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.TypeText(nodeId = "com.app:id/label", text = "test"),
+                )
 
             assertInstanceOf(ActionResult.Error::class.java, result)
             val error = result as ActionResult.Error
@@ -173,9 +175,10 @@ class ActionExecutorTest {
         fun should_returnError_when_targetNodeNotFound() {
             stubFindNodeReturnsNull()
 
-            val result = executor.execute(
-                NeuronAction.TypeText(nodeId = "missing", text = "test")
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.TypeText(nodeId = "missing", text = "test"),
+                )
 
             assertInstanceOf(ActionResult.Error::class.java, result)
         }
@@ -185,7 +188,6 @@ class ActionExecutorTest {
 
     @Nested
     inner class SwipeAction {
-
         @Test
         fun should_returnSuccess_when_swipeGestureDispatched() {
             val mockGesture = mockk<GestureDescription>()
@@ -194,9 +196,10 @@ class ActionExecutorTest {
             } returns mockGesture
             every { mockService.dispatchGesture(mockGesture, null, null) } returns true
 
-            val result = executor.execute(
-                NeuronAction.Swipe(startX = 500, startY = 1500, endX = 500, endY = 500)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.Swipe(startX = 500, startY = 1500, endX = 500, endY = 500),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify { mockService.dispatchGesture(mockGesture, null, null) }
@@ -210,9 +213,10 @@ class ActionExecutorTest {
             } returns mockGesture
             every { mockService.dispatchGesture(mockGesture, null, null) } returns false
 
-            val result = executor.execute(
-                NeuronAction.Swipe(startX = 500, startY = 1500, endX = 500, endY = 500)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.Swipe(startX = 500, startY = 1500, endX = 500, endY = 500),
+                )
 
             assertInstanceOf(ActionResult.Error::class.java, result)
         }
@@ -222,21 +226,22 @@ class ActionExecutorTest {
 
     @Nested
     inner class ScrollAction {
-
         @Test
         fun should_returnSuccess_when_scrollForwardPerformed() {
-            val scrollableNode = createMockNode(
-                resourceId = "com.app:id/list",
-                scrollable = true,
-            )
+            val scrollableNode =
+                createMockNode(
+                    resourceId = "com.app:id/list",
+                    scrollable = true,
+                )
             stubFindNode(scrollableNode)
             every {
                 scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
             } returns true
 
-            val result = executor.execute(
-                NeuronAction.Scroll(nodeId = "com.app:id/list", direction = ScrollDirection.DOWN)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.Scroll(nodeId = "com.app:id/list", direction = ScrollDirection.DOWN),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify { scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) }
@@ -244,18 +249,20 @@ class ActionExecutorTest {
 
         @Test
         fun should_scrollBackward_when_directionIsUp() {
-            val scrollableNode = createMockNode(
-                resourceId = "com.app:id/list",
-                scrollable = true,
-            )
+            val scrollableNode =
+                createMockNode(
+                    resourceId = "com.app:id/list",
+                    scrollable = true,
+                )
             stubFindNode(scrollableNode)
             every {
                 scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
             } returns true
 
-            val result = executor.execute(
-                NeuronAction.Scroll(nodeId = "com.app:id/list", direction = ScrollDirection.UP)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.Scroll(nodeId = "com.app:id/list", direction = ScrollDirection.UP),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify { scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) }
@@ -263,15 +270,17 @@ class ActionExecutorTest {
 
         @Test
         fun should_returnError_when_nodeNotScrollable() {
-            val nonScrollableNode = createMockNode(
-                resourceId = "com.app:id/text",
-                scrollable = false,
-            )
+            val nonScrollableNode =
+                createMockNode(
+                    resourceId = "com.app:id/text",
+                    scrollable = false,
+                )
             stubFindNode(nonScrollableNode)
 
-            val result = executor.execute(
-                NeuronAction.Scroll(nodeId = "com.app:id/text", direction = ScrollDirection.DOWN)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.Scroll(nodeId = "com.app:id/text", direction = ScrollDirection.DOWN),
+                )
 
             assertInstanceOf(ActionResult.Error::class.java, result)
         }
@@ -280,9 +289,10 @@ class ActionExecutorTest {
         fun should_returnError_when_scrollNodeNotFound() {
             stubFindNodeReturnsNull()
 
-            val result = executor.execute(
-                NeuronAction.Scroll(nodeId = "missing", direction = ScrollDirection.DOWN)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.Scroll(nodeId = "missing", direction = ScrollDirection.DOWN),
+                )
 
             assertInstanceOf(ActionResult.Error::class.java, result)
         }
@@ -292,7 +302,6 @@ class ActionExecutorTest {
 
     @Nested
     inner class LongPressAction {
-
         @Test
         fun should_returnSuccess_when_longClickPerformed() {
             val node = createMockNode(resourceId = "com.app:id/item", clickable = true)
@@ -319,16 +328,16 @@ class ActionExecutorTest {
 
     @Nested
     inner class GlobalActions {
-
         @Test
         fun should_performHome_when_homeActionRequested() {
             every {
                 mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
             } returns true
 
-            val result = executor.execute(
-                NeuronAction.GlobalAction(action = GlobalActionType.HOME)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.GlobalAction(action = GlobalActionType.HOME),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME) }
@@ -340,9 +349,10 @@ class ActionExecutorTest {
                 mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             } returns true
 
-            val result = executor.execute(
-                NeuronAction.GlobalAction(action = GlobalActionType.BACK)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.GlobalAction(action = GlobalActionType.BACK),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) }
@@ -354,9 +364,10 @@ class ActionExecutorTest {
                 mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
             } returns true
 
-            val result = executor.execute(
-                NeuronAction.GlobalAction(action = GlobalActionType.RECENTS)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.GlobalAction(action = GlobalActionType.RECENTS),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS) }
@@ -368,9 +379,10 @@ class ActionExecutorTest {
                 mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
             } returns true
 
-            val result = executor.execute(
-                NeuronAction.GlobalAction(action = GlobalActionType.NOTIFICATIONS)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.GlobalAction(action = GlobalActionType.NOTIFICATIONS),
+                )
 
             assertInstanceOf(ActionResult.Success::class.java, result)
             verify {
@@ -382,9 +394,10 @@ class ActionExecutorTest {
         fun should_returnError_when_globalActionFails() {
             every { mockService.performGlobalAction(any()) } returns false
 
-            val result = executor.execute(
-                NeuronAction.GlobalAction(action = GlobalActionType.HOME)
-            )
+            val result =
+                executor.execute(
+                    NeuronAction.GlobalAction(action = GlobalActionType.HOME),
+                )
 
             assertInstanceOf(ActionResult.Error::class.java, result)
         }

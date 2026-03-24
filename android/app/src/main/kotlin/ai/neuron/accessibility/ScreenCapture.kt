@@ -12,15 +12,15 @@ import kotlin.coroutines.resume
 class ScreenCapture(
     private val service: NeuronAccessibilityService,
 ) {
-
     suspend fun takeScreenshot(): ScreenshotResult {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             return ScreenshotResult.Error("takeScreenshot requires API 30+")
         }
 
         return try {
-            val bitmap = captureScreen()
-                ?: return ScreenshotResult.Error("Screenshot returned null bitmap")
+            val bitmap =
+                captureScreen()
+                    ?: return ScreenshotResult.Error("Screenshot returned null bitmap")
 
             // Save dimensions before recycle — accessing a recycled bitmap crashes
             val bitmapWidth = bitmap.width
@@ -53,10 +53,11 @@ class ScreenCapture(
                 service.mainExecutor,
                 object : AccessibilityService.TakeScreenshotCallback {
                     override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
-                        val bitmap = Bitmap.wrapHardwareBuffer(
-                            result.hardwareBuffer,
-                            result.colorSpace,
-                        )
+                        val bitmap =
+                            Bitmap.wrapHardwareBuffer(
+                                result.hardwareBuffer,
+                                result.colorSpace,
+                            )
                         result.hardwareBuffer.close()
                         continuation.resume(bitmap)
                     }
@@ -89,7 +90,11 @@ class ScreenCapture(
         const val JPEG_QUALITY = 80
         const val MAX_DIMENSION = 1024
 
-        fun compressToJpeg(bitmap: Bitmap, quality: Int, maxDimension: Int): ByteArray {
+        fun compressToJpeg(
+            bitmap: Bitmap,
+            quality: Int,
+            maxDimension: Int,
+        ): ByteArray {
             val scaled = scaleBitmap(bitmap, maxDimension)
             val stream = ByteArrayOutputStream()
             scaled.compress(Bitmap.CompressFormat.JPEG, quality, stream)
@@ -97,7 +102,10 @@ class ScreenCapture(
             return stream.toByteArray()
         }
 
-        private fun scaleBitmap(bitmap: Bitmap, maxDimension: Int): Bitmap {
+        private fun scaleBitmap(
+            bitmap: Bitmap,
+            maxDimension: Int,
+        ): Bitmap {
             val width = bitmap.width
             val height = bitmap.height
             if (width <= maxDimension && height <= maxDimension) return bitmap

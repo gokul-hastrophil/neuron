@@ -1,5 +1,7 @@
 package ai.neuron.brain
 
+import ai.neuron.BuildConfig
+import ai.neuron.brain.model.EngineState
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,8 +14,6 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import ai.neuron.BuildConfig
-import ai.neuron.brain.model.EngineState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +27,6 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class NeuronBrainService : Service() {
-
     companion object {
         private const val TAG = "NeuronBrain"
         private const val CHANNEL_ID = "neuron_brain"
@@ -37,19 +36,24 @@ class NeuronBrainService : Service() {
     }
 
     @Inject lateinit var engine: PlanAndExecuteEngine
+
     @Inject lateinit var workingMemory: WorkingMemory
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _engineState = MutableStateFlow<EngineState>(EngineState.Idle)
     val engineState: StateFlow<EngineState> = _engineState.asStateFlow()
 
-    private val commandReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val command = intent?.getStringExtra(EXTRA_COMMAND) ?: return
-            Log.d(TAG, "Received command via broadcast: $command")
-            executeCommand(command)
+    private val commandReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context?,
+                intent: Intent?,
+            ) {
+                val command = intent?.getStringExtra(EXTRA_COMMAND) ?: return
+                Log.d(TAG, "Received command via broadcast: $command")
+                executeCommand(command)
+            }
         }
-    }
 
     inner class BrainBinder : Binder() {
         fun getService(): NeuronBrainService = this@NeuronBrainService
@@ -75,7 +79,11 @@ class NeuronBrainService : Service() {
         Log.d(TAG, "NeuronBrainService started")
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         val command = intent?.getStringExtra(EXTRA_COMMAND)
         if (command != null) {
             Log.d(TAG, "onStartCommand: received command via intent extra: \"$command\"")
@@ -108,33 +116,50 @@ class NeuronBrainService : Service() {
         }
     }
 
-    private fun logEngineState(command: String, state: EngineState) {
+    private fun logEngineState(
+        command: String,
+        state: EngineState,
+    ) {
         when (state) {
             is EngineState.Idle -> Log.d(TAG, "[$command] state=Idle")
             is EngineState.Planning -> Log.i(TAG, "[$command] state=Planning command=\"${state.command}\"")
-            is EngineState.Executing -> Log.i(
-                TAG,
-                "[$command] state=Executing step=${state.stepIndex} " +
-                    "actionType=${state.action.actionType} target=\"${state.action.targetId}\"",
-            )
+            is EngineState.Executing ->
+                Log.i(
+                    TAG,
+                    "[$command] state=Executing step=${state.stepIndex} " +
+                        "actionType=${state.action.actionType} target=\"${state.action.targetId}\"",
+                )
             is EngineState.Verifying -> Log.d(TAG, "[$command] state=Verifying step=${state.stepIndex}")
             is EngineState.WaitingForUser -> Log.w(TAG, "[$command] state=WaitingForUser reason=\"${state.reason}\"")
+            is EngineState.ConfirmingAction ->
+                Log.i(
+                    TAG,
+                    "[$command] state=ConfirmingAction step=${state.stepIndex} " +
+                        "actionType=${state.action.actionType} target=\"${state.action.targetId}\"",
+                )
+            is EngineState.AwaitingPlanApproval ->
+                Log.i(
+                    TAG,
+                    "[$command] state=AwaitingPlanApproval steps=${state.actions.size}",
+                )
             is EngineState.Done -> Log.i(TAG, "[$command] state=Done result=\"${state.message}\"")
-            is EngineState.Error -> Log.e(
-                TAG,
-                "[$command] state=Error recoverable=${state.recoverable} message=\"${state.message}\"",
-            )
+            is EngineState.Error ->
+                Log.e(
+                    TAG,
+                    "[$command] state=Error recoverable=${state.recoverable} message=\"${state.message}\"",
+                )
         }
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Neuron Brain",
-            NotificationManager.IMPORTANCE_LOW,
-        ).apply {
-            description = "Neuron AI brain service"
-        }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                "Neuron Brain",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Neuron AI brain service"
+            }
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 

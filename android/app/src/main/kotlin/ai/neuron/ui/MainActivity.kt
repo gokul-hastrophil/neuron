@@ -1,5 +1,11 @@
 package ai.neuron.ui
 
+import ai.neuron.BuildConfig
+import ai.neuron.brain.ExecutionMode
+import ai.neuron.ui.audit.AuditLogScreen
+import ai.neuron.ui.onboarding.OnboardingScreen
+import ai.neuron.ui.settings.NeuronSettings
+import ai.neuron.ui.settings.SettingsScreen
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -18,24 +24,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import ai.neuron.BuildConfig
-import ai.neuron.ui.onboarding.OnboardingScreen
-import ai.neuron.ui.settings.NeuronSettings
-import ai.neuron.ui.settings.SettingsScreen
-import ai.neuron.ui.audit.AuditLogScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
     private var isAccessibilityEnabled = mutableStateOf(false)
     private var isMicrophoneGranted = mutableStateOf(false)
 
-    private val micPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        isMicrophoneGranted.value = granted
-    }
+    private val micPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            isMicrophoneGranted.value = granted
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,38 +54,42 @@ class MainActivity : ComponentActivity() {
                     var settings by mutableStateOf(loadSettings(prefs))
 
                     Scaffold { innerPadding ->
-                        val modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
+                        val modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
 
                         when (currentScreen) {
-                            "onboarding" -> OnboardingScreen(
-                                isAccessibilityEnabled = isAccessibilityEnabled.value,
-                                onComplete = {
-                                    prefs.edit().putBoolean("onboarding_complete", true).apply()
-                                    currentScreen = "main"
-                                },
-                            )
-                            "settings" -> SettingsScreen(
-                                settings = settings,
-                                onSettingsChanged = { newSettings ->
-                                    settings = newSettings
-                                    saveSettings(prefs, newSettings)
-                                },
-                                onClearMemory = { /* TODO: wire to LongTermMemory.clearAll() */ },
-                                onViewAuditLog = { currentScreen = "audit" },
-                                onBack = { currentScreen = "main" },
-                            )
+                            "onboarding" ->
+                                OnboardingScreen(
+                                    isAccessibilityEnabled = isAccessibilityEnabled.value,
+                                    onComplete = {
+                                        prefs.edit().putBoolean("onboarding_complete", true).apply()
+                                        currentScreen = "main"
+                                    },
+                                )
+                            "settings" ->
+                                SettingsScreen(
+                                    settings = settings,
+                                    onSettingsChanged = { newSettings ->
+                                        settings = newSettings
+                                        saveSettings(prefs, newSettings)
+                                    },
+                                    onClearMemory = { /* TODO: wire to LongTermMemory.clearAll() */ },
+                                    onViewAuditLog = { currentScreen = "audit" },
+                                    onBack = { currentScreen = "main" },
+                                )
                             "audit" -> AuditLogScreen(entries = emptyList())
-                            else -> MainScreen(
-                                isAccessibilityEnabled = isAccessibilityEnabled.value,
-                                isMicrophoneGranted = isMicrophoneGranted.value,
-                                onOpenSettings = { currentScreen = "settings" },
-                                onRunOnboarding = { currentScreen = "onboarding" },
-                                onRequestMicrophone = {
-                                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                },
-                            )
+                            else ->
+                                MainScreen(
+                                    isAccessibilityEnabled = isAccessibilityEnabled.value,
+                                    isMicrophoneGranted = isMicrophoneGranted.value,
+                                    onOpenSettings = { currentScreen = "settings" },
+                                    onRunOnboarding = { currentScreen = "onboarding" },
+                                    onRequestMicrophone = {
+                                        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    },
+                                )
                         }
                     }
                 }
@@ -103,16 +108,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val enabledServices = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ) ?: return false
+        val enabledServices =
+            Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+            ) ?: return false
         return enabledServices.contains("ai.neuron")
     }
 
     private fun seedBuildConfigKeys(prefs: android.content.SharedPreferences) {
         val editor = prefs.edit()
-        fun seedIfEmpty(prefKey: String, buildConfigValue: String) {
+
+        fun seedIfEmpty(
+            prefKey: String,
+            buildConfigValue: String,
+        ) {
             val current = prefs.getString(prefKey, "") ?: ""
             if (current.isEmpty() && buildConfigValue.isNotEmpty()) {
                 editor.putString(prefKey, buildConfigValue)
@@ -135,10 +145,19 @@ class MainActivity : ComponentActivity() {
             wakeWordKeyword = prefs.getString("wake_word_keyword", "JARVIS") ?: "JARVIS",
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", true),
             cloudEnabled = prefs.getBoolean("cloud_enabled", true),
+            executionMode =
+                try {
+                    ExecutionMode.valueOf(prefs.getString("execution_mode", "SUPERVISED") ?: "SUPERVISED")
+                } catch (_: IllegalArgumentException) {
+                    ExecutionMode.SUPERVISED
+                },
         )
     }
 
-    private fun saveSettings(prefs: android.content.SharedPreferences, settings: NeuronSettings) {
+    private fun saveSettings(
+        prefs: android.content.SharedPreferences,
+        settings: NeuronSettings,
+    ) {
         prefs.edit()
             .putString("gemini_api_key", settings.geminiApiKey)
             .putString("ollama_endpoint", settings.ollamaEndpoint)
@@ -148,6 +167,7 @@ class MainActivity : ComponentActivity() {
             .putString("wake_word_keyword", settings.wakeWordKeyword)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
             .putBoolean("cloud_enabled", settings.cloudEnabled)
+            .putString("execution_mode", settings.executionMode.name)
             .apply()
     }
 }

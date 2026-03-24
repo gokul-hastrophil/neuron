@@ -13,10 +13,11 @@ data class UITree(
     fun toJson(): String = jsonFormat.encodeToString(this)
 
     companion object {
-        private val jsonFormat = Json {
-            encodeDefaults = false
-            explicitNulls = false
-        }
+        private val jsonFormat =
+            Json {
+                encodeDefaults = false
+                explicitNulls = false
+            }
 
         fun empty(): UITree = UITree()
     }

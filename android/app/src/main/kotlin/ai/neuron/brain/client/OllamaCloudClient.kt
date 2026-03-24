@@ -1,6 +1,7 @@
 package ai.neuron.brain.client
 
 import ai.neuron.BuildConfig
+import ai.neuron.brain.StructuredToolCallParser
 import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.NeuronResult
@@ -24,23 +25,26 @@ interface OllamaCloudApi {
 
 class OllamaCloudClient(
     private val okHttpClient: OkHttpClient,
+    private val toolCallParser: StructuredToolCallParser? = null,
 ) {
     companion object {
         private const val TAG = "NeuronOllama"
         private const val DEFAULT_MODEL = "qwen3-vl:235b-cloud"
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-        explicitNulls = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            explicitNulls = false
+        }
 
-    private val api: OllamaCloudApi = Retrofit.Builder()
-        .baseUrl("https://ollama.com/")
-        .client(okHttpClient)
-        .build()
-        .create(OllamaCloudApi::class.java)
+    private val api: OllamaCloudApi =
+        Retrofit.Builder()
+            .baseUrl("https://ollama.com/")
+            .client(okHttpClient)
+            .build()
+            .create(OllamaCloudApi::class.java)
 
     private val apiKey: String get() = BuildConfig.OLLAMA_API_KEY
 
@@ -63,55 +67,59 @@ class OllamaCloudClient(
             }
             messages.add(NvidiaMessage(role = "user", content = userMessage))
 
-            val request = NvidiaRequest(
-                model = model,
-                messages = messages,
-                maxTokens = maxTokens,
-                temperature = temperature,
-                stream = false,
-            )
+            val request =
+                NvidiaRequest(
+                    model = model,
+                    messages = messages,
+                    maxTokens = maxTokens,
+                    temperature = temperature,
+                    stream = false,
+                )
 
             val requestJson = json.encodeToString(NvidiaRequest.serializer(), request)
             val body = requestJson.toRequestBody("application/json".toMediaType())
 
             val startTime = System.currentTimeMillis()
-            val rawBody = try {
-                api.chatCompletion(
-                    authorization = "Bearer $apiKey",
-                    body = body,
-                )
-            } catch (e: retrofit2.HttpException) {
-                val latency = System.currentTimeMillis() - startTime
-                val errorBody = e.response()?.errorBody()?.string() ?: "no body"
-                Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
-                return NeuronResult.Error("Ollama Cloud HTTP ${e.code()}: ${errorBody.take(200)}", e)
-            }
+            val rawBody =
+                try {
+                    api.chatCompletion(
+                        authorization = "Bearer $apiKey",
+                        body = body,
+                    )
+                } catch (e: retrofit2.HttpException) {
+                    val latency = System.currentTimeMillis() - startTime
+                    val errorBody = e.response()?.errorBody()?.string() ?: "no body"
+                    Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
+                    return NeuronResult.Error("Ollama Cloud HTTP ${e.code()}: ${errorBody.take(200)}", e)
+                }
             val latency = System.currentTimeMillis() - startTime
 
             val responseJson = rawBody.string()
             Log.d(TAG, "$model raw response (${responseJson.length} chars, ${latency}ms)")
             val response = json.decodeFromString(NvidiaResponse.serializer(), responseJson)
 
-            val text = response.choices
-                ?.firstOrNull()
-                ?.message
-                ?.content
-                ?: return NeuronResult.Error("Empty response from Ollama Cloud $model")
+            val text =
+                response.choices
+                    ?.firstOrNull()
+                    ?.message
+                    ?.content
+                    ?: return NeuronResult.Error("Empty response from Ollama Cloud $model")
 
             val totalTokens = response.usage?.totalTokens ?: 0
 
-            val llmResponse = parseAsLLMResponse(text)
+            val llmResponse = parseResponse(text)
             if (llmResponse == null) {
-                Log.w(TAG, "parseAsLLMResponse returned null for: ${text.take(500)}")
+                Log.w(TAG, "parseResponse returned null for: ${text.take(500)}")
                 return NeuronResult.Error("Failed to parse Ollama response as action JSON: ${text.take(200)}")
             }
 
-            val finalResponse = llmResponse.copy(
-                tier = "T3",
-                modelId = model,
-                latencyMs = latency,
-                tokensUsed = totalTokens,
-            )
+            val finalResponse =
+                llmResponse.copy(
+                    tier = "T3",
+                    modelId = model,
+                    latencyMs = latency,
+                    tokensUsed = totalTokens,
+                )
             Log.d(TAG, "$model success: action=${finalResponse.action?.actionType}, target=${finalResponse.action?.targetId}")
             NeuronResult.Success(finalResponse)
         } catch (e: Exception) {
@@ -120,10 +128,24 @@ class OllamaCloudClient(
         }
     }
 
-    private fun parseAsLLMResponse(text: String): LLMResponse? {
+    private fun parseResponse(text: String): LLMResponse? {
         val cleaned = stripMarkdownFences(text).trim()
         Log.d(TAG, "Parsing cleaned text (${cleaned.length} chars): ${cleaned.take(200)}")
 
+        // Try structured tool call parsing first
+        if (toolCallParser != null) {
+            val result = toolCallParser.parse(cleaned)
+            if (result is NeuronResult.Success) {
+                Log.d(TAG, "Parsed via StructuredToolCallParser: ${result.data.actionType}")
+                return LLMResponse(action = result.data)
+            }
+        }
+
+        // Fallback: legacy parsing
+        return parseAsLLMResponseLegacy(cleaned)
+    }
+
+    private fun parseAsLLMResponseLegacy(cleaned: String): LLMResponse? {
         try {
             val resp = LLMResponse.fromJson(cleaned)
             if (resp.action != null) {

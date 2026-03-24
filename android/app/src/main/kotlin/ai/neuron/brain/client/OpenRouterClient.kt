@@ -27,25 +27,29 @@ class OpenRouterClient(
 ) {
     companion object {
         private const val TAG = "NeuronOpenRouter"
+
         /** Free models ordered by capability — all available without payment. */
-        private val MODEL_CHAIN = listOf(
-            "meta-llama/llama-3.3-70b-instruct",
-            "google/gemma-3-27b-it",
-            "mistralai/mistral-small-3.1-24b-instruct-2503",
-        )
+        private val MODEL_CHAIN =
+            listOf(
+                "meta-llama/llama-3.3-70b-instruct",
+                "google/gemma-3-27b-it",
+                "mistralai/mistral-small-3.1-24b-instruct-2503",
+            )
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-        explicitNulls = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            explicitNulls = false
+        }
 
-    private val api: OpenRouterApi = Retrofit.Builder()
-        .baseUrl("https://openrouter.ai/")
-        .client(okHttpClient)
-        .build()
-        .create(OpenRouterApi::class.java)
+    private val api: OpenRouterApi =
+        Retrofit.Builder()
+            .baseUrl("https://openrouter.ai/")
+            .client(okHttpClient)
+            .build()
+            .create(OpenRouterApi::class.java)
 
     private val apiKey: String get() = BuildConfig.OPENROUTER_API_KEY
 
@@ -86,40 +90,43 @@ class OpenRouterClient(
             messages.add(NvidiaMessage(role = "user", content = userMessage))
 
             // Reuse NvidiaRequest — same OpenAI-compatible format
-            val request = NvidiaRequest(
-                model = model,
-                messages = messages,
-                maxTokens = maxTokens,
-                temperature = temperature,
-                stream = false,
-            )
+            val request =
+                NvidiaRequest(
+                    model = model,
+                    messages = messages,
+                    maxTokens = maxTokens,
+                    temperature = temperature,
+                    stream = false,
+                )
 
             val requestJson = json.encodeToString(NvidiaRequest.serializer(), request)
             val body = requestJson.toRequestBody("application/json".toMediaType())
 
             val startTime = System.currentTimeMillis()
-            val rawBody = try {
-                api.chatCompletion(
-                    authorization = "Bearer $apiKey",
-                    body = body,
-                )
-            } catch (e: retrofit2.HttpException) {
-                val latency = System.currentTimeMillis() - startTime
-                val errorBody = e.response()?.errorBody()?.string() ?: "no body"
-                Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
-                return NeuronResult.Error("OpenRouter API HTTP ${e.code()}: ${errorBody.take(200)}", e)
-            }
+            val rawBody =
+                try {
+                    api.chatCompletion(
+                        authorization = "Bearer $apiKey",
+                        body = body,
+                    )
+                } catch (e: retrofit2.HttpException) {
+                    val latency = System.currentTimeMillis() - startTime
+                    val errorBody = e.response()?.errorBody()?.string() ?: "no body"
+                    Log.e(TAG, "$model HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
+                    return NeuronResult.Error("OpenRouter API HTTP ${e.code()}: ${errorBody.take(200)}", e)
+                }
             val latency = System.currentTimeMillis() - startTime
 
             val responseJson = rawBody.string()
             Log.d(TAG, "$model raw response (${responseJson.length} chars, ${latency}ms)")
             val response = json.decodeFromString(NvidiaResponse.serializer(), responseJson)
 
-            val text = response.choices
-                ?.firstOrNull()
-                ?.message
-                ?.content
-                ?: return NeuronResult.Error("Empty response from OpenRouter $model")
+            val text =
+                response.choices
+                    ?.firstOrNull()
+                    ?.message
+                    ?.content
+                    ?: return NeuronResult.Error("Empty response from OpenRouter $model")
 
             val totalTokens = response.usage?.totalTokens ?: 0
 
@@ -129,12 +136,13 @@ class OpenRouterClient(
                 return NeuronResult.Error("Failed to parse OpenRouter response as action JSON: ${text.take(200)}")
             }
 
-            val finalResponse = llmResponse.copy(
-                tier = "T3",
-                modelId = model,
-                latencyMs = latency,
-                tokensUsed = totalTokens,
-            )
+            val finalResponse =
+                llmResponse.copy(
+                    tier = "T3",
+                    modelId = model,
+                    latencyMs = latency,
+                    tokensUsed = totalTokens,
+                )
             Log.d(TAG, "$model success: action=${finalResponse.action?.actionType}, target=${finalResponse.action?.targetId}")
             NeuronResult.Success(finalResponse)
         } catch (e: Exception) {

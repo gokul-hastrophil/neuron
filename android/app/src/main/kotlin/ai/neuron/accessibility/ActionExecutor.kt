@@ -15,18 +15,28 @@ class ActionExecutor(
     private val service: NeuronAccessibilityService,
     private val gestureFactory: GestureFactory = DefaultGestureFactory(),
 ) {
-
     interface GestureFactory {
-        fun createTap(x: Float, y: Float, durationMs: Long): GestureDescription
+        fun createTap(
+            x: Float,
+            y: Float,
+            durationMs: Long,
+        ): GestureDescription
+
         fun createSwipe(
-            startX: Float, startY: Float,
-            endX: Float, endY: Float,
+            startX: Float,
+            startY: Float,
+            endX: Float,
+            endY: Float,
             durationMs: Long,
         ): GestureDescription
     }
 
     class DefaultGestureFactory : GestureFactory {
-        override fun createTap(x: Float, y: Float, durationMs: Long): GestureDescription {
+        override fun createTap(
+            x: Float,
+            y: Float,
+            durationMs: Long,
+        ): GestureDescription {
             val path = Path().apply { moveTo(x, y) }
             return GestureDescription.Builder()
                 .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs))
@@ -34,14 +44,17 @@ class ActionExecutor(
         }
 
         override fun createSwipe(
-            startX: Float, startY: Float,
-            endX: Float, endY: Float,
+            startX: Float,
+            startY: Float,
+            endX: Float,
+            endY: Float,
             durationMs: Long,
         ): GestureDescription {
-            val path = Path().apply {
-                moveTo(startX, startY)
-                lineTo(endX, endY)
-            }
+            val path =
+                Path().apply {
+                    moveTo(startX, startY)
+                    lineTo(endX, endY)
+                }
             return GestureDescription.Builder()
                 .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs))
                 .build()
@@ -64,8 +77,9 @@ class ActionExecutor(
     }
 
     private fun executeTap(action: NeuronAction.Tap): ActionResult {
-        val node = findNodeById(action.nodeId)
-            ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
+        val node =
+            findNodeById(action.nodeId)
+                ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
 
         val clickTarget = findClickableNode(node)
         if (clickTarget == null) {
@@ -90,9 +104,12 @@ class ActionExecutor(
     }
 
     private fun executeTapCoordinate(action: NeuronAction.TapCoordinate): ActionResult {
-        val gesture = gestureFactory.createTap(
-            action.x.toFloat(), action.y.toFloat(), TAP_DURATION_MS,
-        )
+        val gesture =
+            gestureFactory.createTap(
+                action.x.toFloat(),
+                action.y.toFloat(),
+                TAP_DURATION_MS,
+            )
         val dispatched = service.dispatchGesture(gesture, null, null)
         return if (dispatched) {
             ActionResult.Success(action)
@@ -102,20 +119,22 @@ class ActionExecutor(
     }
 
     private fun executeTypeText(action: NeuronAction.TypeText): ActionResult {
-        val node = findNodeById(action.nodeId)
-            ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
+        val node =
+            findNodeById(action.nodeId)
+                ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
 
         return try {
             if (!node.isEditable) {
                 return ActionResult.Error(action, "Node '${action.nodeId}' is not editable")
             }
 
-            val arguments = Bundle().apply {
-                putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    action.text,
-                )
-            }
+            val arguments =
+                Bundle().apply {
+                    putCharSequence(
+                        AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                        action.text,
+                    )
+                }
             node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
             ActionResult.Success(action)
         } finally {
@@ -124,11 +143,14 @@ class ActionExecutor(
     }
 
     private fun executeSwipe(action: NeuronAction.Swipe): ActionResult {
-        val gesture = gestureFactory.createSwipe(
-            action.startX.toFloat(), action.startY.toFloat(),
-            action.endX.toFloat(), action.endY.toFloat(),
-            action.durationMs,
-        )
+        val gesture =
+            gestureFactory.createSwipe(
+                action.startX.toFloat(),
+                action.startY.toFloat(),
+                action.endX.toFloat(),
+                action.endY.toFloat(),
+                action.durationMs,
+            )
         val dispatched = service.dispatchGesture(gesture, null, null)
         return if (dispatched) {
             ActionResult.Success(action)
@@ -138,18 +160,20 @@ class ActionExecutor(
     }
 
     private fun executeScroll(action: NeuronAction.Scroll): ActionResult {
-        val node = findNodeById(action.nodeId)
-            ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
+        val node =
+            findNodeById(action.nodeId)
+                ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
 
         return try {
             if (!node.isScrollable) {
                 return ActionResult.Error(action, "Node '${action.nodeId}' is not scrollable")
             }
 
-            val scrollAction = when (action.direction) {
-                ScrollDirection.DOWN, ScrollDirection.RIGHT -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-                ScrollDirection.UP, ScrollDirection.LEFT -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-            }
+            val scrollAction =
+                when (action.direction) {
+                    ScrollDirection.DOWN, ScrollDirection.RIGHT -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                    ScrollDirection.UP, ScrollDirection.LEFT -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                }
             node.performAction(scrollAction)
             ActionResult.Success(action)
         } finally {
@@ -158,8 +182,9 @@ class ActionExecutor(
     }
 
     private fun executeLongPress(action: NeuronAction.LongPress): ActionResult {
-        val node = findNodeById(action.nodeId)
-            ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
+        val node =
+            findNodeById(action.nodeId)
+                ?: return ActionResult.Error(action, "Node '${action.nodeId}' not found")
 
         return try {
             node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
@@ -200,28 +225,32 @@ class ActionExecutor(
 
         // Fallback: query for MAIN/LAUNCHER activity directly (some OEMs don't register it properly)
         if (intent == null) {
-            val launchIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-                addCategory(android.content.Intent.CATEGORY_LAUNCHER)
-                setPackage(action.packageName)
-            }
+            val launchIntent =
+                android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                    addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                    setPackage(action.packageName)
+                }
             val resolveInfo = pm.resolveActivity(launchIntent, 0)
             if (resolveInfo != null) {
-                intent = android.content.Intent().apply {
-                    setClassName(action.packageName, resolveInfo.activityInfo.name)
-                }
+                intent =
+                    android.content.Intent().apply {
+                        setClassName(action.packageName, resolveInfo.activityInfo.name)
+                    }
             }
         }
 
         // Last fallback: try MAIN without LAUNCHER category
         if (intent == null) {
-            val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-                setPackage(action.packageName)
-            }
+            val mainIntent =
+                android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                    setPackage(action.packageName)
+                }
             val activities = pm.queryIntentActivities(mainIntent, 0)
             if (activities.isNotEmpty()) {
-                intent = android.content.Intent().apply {
-                    setClassName(action.packageName, activities[0].activityInfo.name)
-                }
+                intent =
+                    android.content.Intent().apply {
+                        setClassName(action.packageName, activities[0].activityInfo.name)
+                    }
             }
         }
 
@@ -242,13 +271,14 @@ class ActionExecutor(
     }
 
     private fun executeGlobalAction(action: NeuronAction.GlobalAction): ActionResult {
-        val globalActionId = when (action.action) {
-            GlobalActionType.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
-            GlobalActionType.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
-            GlobalActionType.RECENTS -> AccessibilityService.GLOBAL_ACTION_RECENTS
-            GlobalActionType.NOTIFICATIONS -> AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
-            GlobalActionType.QUICK_SETTINGS -> AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
-        }
+        val globalActionId =
+            when (action.action) {
+                GlobalActionType.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
+                GlobalActionType.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
+                GlobalActionType.RECENTS -> AccessibilityService.GLOBAL_ACTION_RECENTS
+                GlobalActionType.NOTIFICATIONS -> AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                GlobalActionType.QUICK_SETTINGS -> AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
+            }
 
         val success = service.performGlobalAction(globalActionId)
         return if (success) {

@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package ai.neuron.ui.onboarding
 
 import android.content.Context
@@ -10,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,19 +41,21 @@ fun OnboardingScreen(
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         when (step) {
             0 -> WelcomeStep(onNext = { step = 1 })
-            1 -> PermissionsStep(
-                isEnabled = isAccessibilityEnabled,
-                onOpenSettings = { openAccessibilitySettings(context) },
-                onNext = { step = 2 },
-            )
+            1 ->
+                PermissionsStep(
+                    isEnabled = isAccessibilityEnabled,
+                    onOpenSettings = { openAccessibilitySettings(context) },
+                    onNext = { step = 2 },
+                )
             2 -> TestCommandStep(onNext = { step = 3 })
             3 -> DoneStep(onComplete = onComplete)
         }
@@ -93,9 +96,10 @@ private fun PermissionsStep(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -176,8 +180,9 @@ private fun DoneStep(onComplete: () -> Unit) {
 }
 
 private fun openAccessibilitySettings(context: Context) {
-    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-    }
+    val intent =
+        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
     context.startActivity(intent)
 }

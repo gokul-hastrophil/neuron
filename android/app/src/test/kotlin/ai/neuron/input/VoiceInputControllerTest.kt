@@ -1,17 +1,14 @@
 package ai.neuron.input
 
 import ai.neuron.accessibility.OverlayManager
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class VoiceInputControllerTest {
-
     private lateinit var controller: VoiceInputController
     private lateinit var speechManager: SpeechRecognitionManager
     private lateinit var overlayManager: OverlayManager
@@ -26,7 +23,6 @@ class VoiceInputControllerTest {
     @Nested
     @DisplayName("Hold-to-speak lifecycle")
     inner class HoldToSpeak {
-
         @Test
         fun should_cancelListening_when_userCancels() {
             speechManager.onRecognitionStarted()
@@ -38,7 +34,6 @@ class VoiceInputControllerTest {
     @Nested
     @DisplayName("Transcript observation")
     inner class Transcript {
-
         @Test
         fun should_exposePartialTranscript_when_listening() {
             speechManager.onRecognitionStarted()
@@ -51,7 +46,6 @@ class VoiceInputControllerTest {
     @Nested
     @DisplayName("Command callback")
     inner class CommandCallback {
-
         @Test
         fun should_invokeCallback_when_finalResultReady() {
             var capturedCommand: String? = null

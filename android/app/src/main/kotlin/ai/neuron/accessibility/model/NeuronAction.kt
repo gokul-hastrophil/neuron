@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 sealed class NeuronAction {
-
     @Serializable
     data class Tap(val nodeId: String) : NeuronAction()
 
@@ -44,5 +43,9 @@ enum class ScrollDirection { UP, DOWN, LEFT, RIGHT }
 
 @Serializable
 enum class GlobalActionType {
-    HOME, BACK, RECENTS, NOTIFICATIONS, QUICK_SETTINGS
+    HOME,
+    BACK,
+    RECENTS,
+    NOTIFICATIONS,
+    QUICK_SETTINGS,
 }

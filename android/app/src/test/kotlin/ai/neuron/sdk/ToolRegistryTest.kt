@@ -3,7 +3,6 @@ package ai.neuron.sdk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.assertThrows
 
 @DisplayName("ToolRegistry")
 class ToolRegistryTest {
-
     private lateinit var registry: ToolRegistry
 
     @BeforeEach
@@ -25,15 +23,15 @@ class ToolRegistryTest {
     @Nested
     @DisplayName("Register")
     inner class Register {
-
         @Test
         fun should_registerTool_when_validDefinition() {
-            val tool = NeuronTool(
-                name = "calculate",
-                description = "Performs calculation",
-                parameters = mapOf("expression" to "string"),
-                execute = { params -> "42" },
-            )
+            val tool =
+                NeuronTool(
+                    name = "calculate",
+                    description = "Performs calculation",
+                    parameters = mapOf("expression" to "string"),
+                    execute = { params -> "42" },
+                )
             registry.register(tool)
             assertEquals(1, registry.listTools().size)
         }
@@ -59,7 +57,6 @@ class ToolRegistryTest {
     @Nested
     @DisplayName("Unregister")
     inner class Unregister {
-
         @Test
         fun should_removeTool_when_nameExists() {
             registry.register(NeuronTool("calc", "a", emptyMap()) { "" })
@@ -76,7 +73,6 @@ class ToolRegistryTest {
     @Nested
     @DisplayName("List")
     inner class ListTools {
-
         @Test
         fun should_returnEmpty_when_noToolsRegistered() {
             assertTrue(registry.listTools().isEmpty())
@@ -95,32 +91,35 @@ class ToolRegistryTest {
     @Nested
     @DisplayName("Invoke")
     inner class Invoke {
+        @Test
+        fun should_executeCallback_when_toolExists() =
+            runTest {
+                registry.register(
+                    NeuronTool("echo", "echo", mapOf("text" to "string")) { params ->
+                        params["text"] ?: "no text"
+                    },
+                )
+                val result = registry.invoke("echo", mapOf("text" to "hello"))
+                assertEquals("hello", result)
+            }
 
         @Test
-        fun should_executeCallback_when_toolExists() = runTest {
-            registry.register(NeuronTool("echo", "echo", mapOf("text" to "string")) { params ->
-                params["text"] ?: "no text"
-            })
-            val result = registry.invoke("echo", mapOf("text" to "hello"))
-            assertEquals("hello", result)
-        }
+        fun should_returnNull_when_toolNotFound() =
+            runTest {
+                assertNull(registry.invoke("nonexistent", emptyMap()))
+            }
 
         @Test
-        fun should_returnNull_when_toolNotFound() = runTest {
-            assertNull(registry.invoke("nonexistent", emptyMap()))
-        }
-
-        @Test
-        fun should_passEmptyParams_when_noParamsGiven() = runTest {
-            registry.register(NeuronTool("ping", "ping", emptyMap()) { "pong" })
-            assertEquals("pong", registry.invoke("ping", emptyMap()))
-        }
+        fun should_passEmptyParams_when_noParamsGiven() =
+            runTest {
+                registry.register(NeuronTool("ping", "ping", emptyMap()) { "pong" })
+                assertEquals("pong", registry.invoke("ping", emptyMap()))
+            }
     }
 
     @Nested
     @DisplayName("Prompt generation")
     inner class PromptGeneration {
-
         @Test
         fun should_generateToolDescriptions_when_toolsRegistered() {
             registry.register(NeuronTool("calculate", "Performs math calculations", mapOf("expr" to "string")) { "" })

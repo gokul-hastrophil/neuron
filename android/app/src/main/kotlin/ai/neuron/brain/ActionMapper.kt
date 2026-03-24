@@ -8,7 +8,6 @@ import ai.neuron.brain.model.LLMAction
 import android.view.KeyEvent
 
 object ActionMapper {
-
     fun mapToNeuronAction(action: LLMAction): NeuronAction? =
         when (action.actionType) {
             ActionType.TAP -> {
@@ -21,12 +20,13 @@ object ActionMapper {
                 NeuronAction.TypeText(nodeId = nodeId, text = text)
             }
             ActionType.SWIPE -> {
-                val direction = when (action.value?.lowercase()) {
-                    "up" -> ScrollDirection.UP
-                    "left" -> ScrollDirection.LEFT
-                    "right" -> ScrollDirection.RIGHT
-                    else -> ScrollDirection.DOWN
-                }
+                val direction =
+                    when (action.value?.lowercase()) {
+                        "up" -> ScrollDirection.UP
+                        "left" -> ScrollDirection.LEFT
+                        "right" -> ScrollDirection.RIGHT
+                        else -> ScrollDirection.DOWN
+                    }
                 NeuronAction.Scroll(nodeId = "", direction = direction)
             }
             ActionType.NAVIGATE -> mapNavigate(action.value)

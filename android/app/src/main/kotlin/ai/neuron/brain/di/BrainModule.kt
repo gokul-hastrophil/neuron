@@ -16,8 +16,8 @@ import ai.neuron.brain.model.LLMAction
 import ai.neuron.nerve.DualPathExecutor
 import ai.neuron.sdk.ToolRegistry
 import android.content.Context
-import android.util.Log
 import android.content.pm.PackageManager
+import android.util.Log
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,24 +33,25 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object BrainModule {
-
     private const val TAG = "NeuronBrainModule"
 
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        val builder = OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+        val builder =
+            OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
 
         if (BuildConfig.DEBUG) {
-            val loggingInterceptor = HttpLoggingInterceptor { message ->
-                val sanitized = sanitizeApiKeys(message)
-                android.util.Log.d("NeuronHttp", sanitized)
-            }.apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
+            val loggingInterceptor =
+                HttpLoggingInterceptor { message ->
+                    val sanitized = sanitizeApiKeys(message)
+                    android.util.Log.d("NeuronHttp", sanitized)
+                }.apply {
+                    level = HttpLoggingInterceptor.Level.BODY
+                }
             builder.addInterceptor(loggingInterceptor)
         }
 
@@ -59,23 +60,25 @@ object BrainModule {
 
     @Provides
     @Singleton
-    fun provideGeminiFlashClient(okHttpClient: OkHttpClient, toolCallParser: StructuredToolCallParser): GeminiFlashClient =
-        GeminiFlashClient(okHttpClient, toolCallParser)
+    fun provideGeminiFlashClient(
+        okHttpClient: OkHttpClient,
+        toolCallParser: StructuredToolCallParser,
+    ): GeminiFlashClient = GeminiFlashClient(okHttpClient, toolCallParser)
 
     @Provides
     @Singleton
-    fun provideNvidiaQwenClient(okHttpClient: OkHttpClient): NvidiaQwenClient =
-        NvidiaQwenClient(okHttpClient)
+    fun provideNvidiaQwenClient(okHttpClient: OkHttpClient): NvidiaQwenClient = NvidiaQwenClient(okHttpClient)
 
     @Provides
     @Singleton
-    fun provideOpenRouterClient(okHttpClient: OkHttpClient): OpenRouterClient =
-        OpenRouterClient(okHttpClient)
+    fun provideOpenRouterClient(okHttpClient: OkHttpClient): OpenRouterClient = OpenRouterClient(okHttpClient)
 
     @Provides
     @Singleton
-    fun provideOllamaCloudClient(okHttpClient: OkHttpClient, toolCallParser: StructuredToolCallParser): OllamaCloudClient =
-        OllamaCloudClient(okHttpClient, toolCallParser)
+    fun provideOllamaCloudClient(
+        okHttpClient: OkHttpClient,
+        toolCallParser: StructuredToolCallParser,
+    ): OllamaCloudClient = OllamaCloudClient(okHttpClient, toolCallParser)
 
     @Provides
     @Singleton
@@ -107,11 +110,12 @@ object BrainModule {
                     if (action.actionType == ActionType.TOOL_CALL) {
                         val toolName = action.value ?: return@withContext false
                         val paramsJson = action.targetText ?: "{}"
-                        val params = try {
-                            kotlinx.serialization.json.Json.decodeFromString<Map<String, String>>(paramsJson)
-                        } catch (e: Exception) {
-                            emptyMap()
-                        }
+                        val params =
+                            try {
+                                kotlinx.serialization.json.Json.decodeFromString<Map<String, String>>(paramsJson)
+                            } catch (e: Exception) {
+                                emptyMap()
+                            }
                         val result = toolRegistry.invoke(toolName, params)
                         if (result == null) {
                             Log.w(TAG, "ActionDispatcher: tool '$toolName' not found in registry")
@@ -133,7 +137,11 @@ object BrainModule {
                 }
         }
 
-    private fun resolveTargetPackage(action: LLMAction, pm: PackageManager, appResolver: AppResolver): String? {
+    private fun resolveTargetPackage(
+        action: LLMAction,
+        pm: PackageManager,
+        appResolver: AppResolver,
+    ): String? {
         if (action.actionType == ActionType.LAUNCH) {
             val value = action.value ?: return null
             return appResolver.resolve(value, pm)

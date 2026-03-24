@@ -1,5 +1,9 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package ai.neuron.ui.settings
 
+import ai.neuron.brain.ExecutionMode
+import ai.neuron.input.WakeWordService
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import ai.neuron.input.WakeWordService
 
 data class NeuronSettings(
     val geminiApiKey: String = "",
@@ -39,6 +42,7 @@ data class NeuronSettings(
     val wakeWordKeyword: String = "JARVIS",
     val wakeWordEnabled: Boolean = true,
     val cloudEnabled: Boolean = true,
+    val executionMode: ExecutionMode = ExecutionMode.SUPERVISED,
     val sensitiveAppsOverrides: Set<String> = emptySet(),
 )
 
@@ -53,10 +57,11 @@ fun SettingsScreen(
     var showClearDialog by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -123,6 +128,25 @@ fun SettingsScreen(
         HorizontalDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
+        // --- Execution Mode Section ---
+        SectionHeader("Execution Mode")
+
+        Text(
+            text = "Controls whether Neuron asks for confirmation before executing actions.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ExecutionModeSelector(
+            selectedMode = settings.executionMode,
+            onModeSelected = { onSettingsChanged(settings.copy(executionMode = it)) },
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+
         // --- Wake Word Section ---
         SectionHeader("Wake Word")
 
@@ -152,9 +176,10 @@ fun SettingsScreen(
         SectionHeader("Memory")
 
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showClearDialog = true },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { showClearDialog = true },
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Clear All Memory", style = MaterialTheme.typography.titleSmall)
@@ -174,9 +199,10 @@ fun SettingsScreen(
         SectionHeader("Audit")
 
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onViewAuditLog() },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onViewAuditLog() },
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("View Audit Log", style = MaterialTheme.typography.titleSmall)
@@ -254,9 +280,10 @@ private fun WakeWordSelector(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -279,25 +306,73 @@ private fun WakeWordSelector(
                     keywords.forEach { keyword ->
                         Text(
                             text = keyword,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onKeywordSelected(keyword)
-                                    expanded = false
-                                }
-                                .padding(12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onKeywordSelected(keyword)
+                                        expanded = false
+                                    }
+                                    .padding(12.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (keyword == selectedKeyword) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
+                            color =
+                                if (keyword == selectedKeyword) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
                         )
                     }
                 }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun ExecutionModeSelector(
+    selectedMode: ExecutionMode,
+    onModeSelected: (ExecutionMode) -> Unit,
+) {
+    val modes =
+        listOf(
+            Triple(ExecutionMode.SUPERVISED, "Supervised", "Confirm each step before executing"),
+            Triple(ExecutionMode.PLAN_APPROVE, "Plan & Approve", "Show full plan, then execute after approval"),
+            Triple(ExecutionMode.AUTONOMOUS, "Autonomous", "Execute without confirmation (sideload only)"),
+        )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        modes.forEach { (mode, title, subtitle) ->
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp)
+                        .clickable { onModeSelected(mode) },
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(title, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (mode == selectedMode) {
+                        Text(
+                            text = "\u2713",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -309,9 +384,10 @@ private fun SettingsToggle(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {

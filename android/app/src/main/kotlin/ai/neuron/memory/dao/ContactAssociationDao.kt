@@ -10,7 +10,6 @@ import androidx.room.Update
 
 @Dao
 interface ContactAssociationDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(contact: ContactAssociation): Long
 

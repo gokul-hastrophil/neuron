@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class IntentClassifierTest {
-
     private lateinit var classifier: IntentClassifier
 
     @BeforeEach
@@ -20,7 +19,6 @@ class IntentClassifierTest {
     @Nested
     @DisplayName("Simple commands → SIMPLE")
     inner class SimpleCommands {
-
         @Test
         fun should_classifySimple_when_goHome() {
             val result = classifier.classify("go home")
@@ -62,7 +60,6 @@ class IntentClassifierTest {
     @Nested
     @DisplayName("Moderate commands → MODERATE")
     inner class ModerateCommands {
-
         @Test
         fun should_classifyModerate_when_messageOnWhatsApp() {
             val result = classifier.classify("message Mom on WhatsApp")
@@ -98,7 +95,6 @@ class IntentClassifierTest {
     @Nested
     @DisplayName("Complex commands → COMPLEX")
     inner class ComplexCommands {
-
         @Test
         fun should_classifyComplex_when_findCheapestFlight() {
             val result = classifier.classify("find the cheapest flight to NYC next weekend")
@@ -128,7 +124,6 @@ class IntentClassifierTest {
     @Nested
     @DisplayName("Ambiguous commands → ASK_USER")
     inner class AmbiguousCommands {
-
         @Test
         fun should_classifyAskUser_when_veryShortAmbiguous() {
             val result = classifier.classify("do it")
@@ -145,7 +140,6 @@ class IntentClassifierTest {
     @Nested
     @DisplayName("Domain classification")
     inner class DomainClassification {
-
         @Test
         fun should_classifyMessagingDomain_when_whatsAppMention() {
             val result = classifier.classify("message Mom on WhatsApp")

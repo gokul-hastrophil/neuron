@@ -2,6 +2,8 @@ package ai.neuron.brain
 
 import ai.neuron.accessibility.model.UITree
 import ai.neuron.brain.client.LLMClientManager
+import ai.neuron.brain.llm.FunctionGemmaClient
+import ai.neuron.brain.llm.Gemma3nClient
 import ai.neuron.brain.model.ActionType
 import ai.neuron.brain.model.IntentClassification
 import ai.neuron.brain.model.LLMAction
@@ -14,167 +16,209 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class LLMRouter @Inject constructor(
-    private val sensitivityGate: SensitivityGate,
-    private val clientManager: LLMClientManager,
-    private val longTermMemory: LongTermMemory,
-    private val toolRegistry: ToolRegistry,
-) {
-    companion object {
-        private val FALLBACK_CHAIN = mapOf(
-            LLMTier.T2 to LLMTier.T3,
-        )
-    }
+class LLMRouter
+    @Inject
+    constructor(
+        private val sensitivityGate: SensitivityGate,
+        private val clientManager: LLMClientManager,
+        private val longTermMemory: LongTermMemory,
+        private val toolRegistry: ToolRegistry,
+    ) {
+        /** Optional on-device clients. Injected when available. */
+        var functionGemmaClient: FunctionGemmaClient? = null
+        var gemma3nClient: Gemma3nClient? = null
 
-    suspend fun route(
-        command: String,
-        uiTree: UITree,
-        classification: IntentClassification,
-    ): NeuronResult<LLMResponse> {
-        // Always try deterministic pattern matching first, regardless of tier.
-        // This avoids sending simple commands (open app, go back, show recents) to cloud.
-        val patternAction = matchCommandPattern(command)
-        if (patternAction != null) {
-            val effectiveAction = if (patternAction.actionType == ActionType.LAUNCH &&
-                isAppAlreadyOpen(patternAction.value, uiTree.packageName)
-            ) {
-                LLMAction(
-                    actionType = ActionType.DONE,
-                    reasoning = "${patternAction.value} is already open",
-                    confidence = 1.0,
+        companion object {
+            private val FALLBACK_CHAIN =
+                mapOf(
+                    LLMTier.T2 to LLMTier.T3,
                 )
-            } else {
-                patternAction
+        }
+
+        suspend fun route(
+            command: String,
+            uiTree: UITree,
+            classification: IntentClassification,
+            characterContext: String? = null,
+        ): NeuronResult<LLMResponse> {
+            // Always try deterministic pattern matching first, regardless of tier.
+            // This avoids sending simple commands (open app, go back, show recents) to cloud.
+            val patternAction = matchCommandPattern(command)
+            if (patternAction != null) {
+                val effectiveAction =
+                    if (patternAction.actionType == ActionType.LAUNCH &&
+                        isAppAlreadyOpen(patternAction.value, uiTree.packageName)
+                    ) {
+                        LLMAction(
+                            actionType = ActionType.DONE,
+                            reasoning = "${patternAction.value} is already open",
+                            confidence = 1.0,
+                        )
+                    } else {
+                        patternAction
+                    }
+
+                return NeuronResult.Success(
+                    LLMResponse(
+                        action = effectiveAction,
+                        tier = "T0",
+                        modelId = "pattern-match",
+                    ),
+                )
             }
 
+            val effectiveTier =
+                if (sensitivityGate.isSensitive(uiTree)) {
+                    LLMTier.T4
+                } else {
+                    classification.suggestedTier
+                }
+
+            return when (effectiveTier) {
+                LLMTier.T4 -> handleSensitive(command, tier = effectiveTier)
+                LLMTier.T0, LLMTier.T1 -> handleOnDevice(command, uiTree, effectiveTier)
+                LLMTier.T2, LLMTier.T3 -> handleCloud(command, uiTree, effectiveTier, characterContext)
+            }
+        }
+
+        private suspend fun handleSensitive(
+            command: String,
+            tier: LLMTier,
+        ): NeuronResult<LLMResponse> {
+            // T4: sensitive context — NEVER send to cloud. On-device only.
+            // Try Gemma 3n first (supports multimodal for screenshot-based reasoning)
+            val g3n = gemma3nClient
+            if (g3n != null && g3n.isAvailable()) {
+                return g3n.generateAction(command)
+            }
+
+            // Fallback: pattern match what we can
+            val patternAction = matchCommandPattern(command)
             return NeuronResult.Success(
                 LLMResponse(
-                    action = effectiveAction,
-                    tier = "T0",
-                    modelId = "pattern-match",
+                    action =
+                        patternAction ?: LLMAction(
+                            actionType = ActionType.DONE,
+                            reasoning = "Sensitive context detected — on-device processing only",
+                            confidence = 0.5,
+                        ),
+                    tier = tier.name,
+                    modelId = "on-device",
                 ),
             )
         }
 
-        val effectiveTier = if (sensitivityGate.isSensitive(uiTree)) {
-            LLMTier.T4
-        } else {
-            classification.suggestedTier
+        private suspend fun handleOnDevice(
+            command: String,
+            uiTree: UITree,
+            tier: LLMTier,
+        ): NeuronResult<LLMResponse> {
+            // Pattern matching already handled in route() — if we're here, no pattern matched.
+
+            // Try FunctionGemma T1 first (fast, 270M, function calling)
+            val fg = functionGemmaClient
+            if (fg != null && fg.isAvailable()) {
+                val result = fg.generateAction(command)
+                if (result is NeuronResult.Success) return result
+            }
+
+            // Try Gemma 3n T1.5 (complex on-device, 2B effective)
+            val g3n = gemma3nClient
+            if (g3n != null && g3n.isAvailable()) {
+                val result = g3n.generateAction(command)
+                if (result is NeuronResult.Success) return result
+            }
+
+            // Fallback: cloud T2
+            return handleCloud(command, uiTree, LLMTier.T2, characterContext = null)
         }
 
-        return when (effectiveTier) {
-            LLMTier.T4 -> handleSensitive(command, tier = effectiveTier)
-            LLMTier.T0, LLMTier.T1 -> handleOnDevice(command, uiTree, effectiveTier)
-            LLMTier.T2, LLMTier.T3 -> handleCloud(command, uiTree, effectiveTier)
+        private fun isAppAlreadyOpen(
+            requestedApp: String?,
+            foregroundPackage: String,
+        ): Boolean {
+            if (requestedApp == null) return false
+            val lower = requestedApp.lowercase()
+            // Check if the foreground package contains the requested app name
+            val fgLower = foregroundPackage.lowercase()
+            return fgLower.contains(lower) || lower.contains(fgLower.substringAfterLast('.'))
         }
-    }
 
-    private fun handleSensitive(
-        command: String,
-        tier: LLMTier,
-    ): NeuronResult<LLMResponse> {
-        // T4: sensitive context — NEVER send to cloud. On-device only.
-        // Pattern match what we can; otherwise block with explanation.
-        val patternAction = matchCommandPattern(command)
-        return NeuronResult.Success(
-            LLMResponse(
-                action = patternAction ?: LLMAction(
-                    actionType = ActionType.DONE,
-                    reasoning = "Sensitive context detected — on-device processing only (Gemma 3n not yet available)",
-                    confidence = 0.5,
-                ),
-                tier = tier.name,
-                modelId = "on-device",
-            ),
-        )
-    }
+        private fun matchCommandPattern(command: String): LLMAction? {
+            val cmd = command.trim().lowercase()
 
-    private suspend fun handleOnDevice(
-        command: String,
-        uiTree: UITree,
-        tier: LLMTier,
-    ): NeuronResult<LLMResponse> {
-        // Pattern matching already handled in route() — if we're here, no pattern matched.
-        // T1 (Gemma 3n) not yet integrated — fall through to T2 cloud.
-        return handleCloud(command, uiTree, LLMTier.T2)
-    }
+            // "open <app>" → LAUNCH (strip articles: "the", "my", "a")
+            // Skip multi-step commands containing "and" (e.g., "open WhatsApp and show me chats")
+            if (!cmd.contains(" and ")) {
+                val openMatch = Regex("^(?:open|launch|start)\\s+(.+)$").find(cmd)
+                if (openMatch != null) {
+                    val raw = openMatch.groupValues[1].trim()
+                    val appName = raw.removePrefix("the ").removePrefix("my ").removePrefix("a ").trim()
+                    return LLMAction(
+                        actionType = ActionType.LAUNCH,
+                        value = appName,
+                        reasoning = "Launching $appName",
+                        confidence = 0.95,
+                    )
+                }
+            }
 
-    private fun isAppAlreadyOpen(requestedApp: String?, foregroundPackage: String): Boolean {
-        if (requestedApp == null) return false
-        val lower = requestedApp.lowercase()
-        // Check if the foreground package contains the requested app name
-        val fgLower = foregroundPackage.lowercase()
-        return fgLower.contains(lower) || lower.contains(fgLower.substringAfterLast('.'))
-    }
-
-    private fun matchCommandPattern(command: String): LLMAction? {
-        val cmd = command.trim().lowercase()
-
-        // "open <app>" → LAUNCH (strip articles: "the", "my", "a")
-        // Skip multi-step commands containing "and" (e.g., "open WhatsApp and show me chats")
-        if (!cmd.contains(" and ")) {
-            val openMatch = Regex("^(?:open|launch|start)\\s+(.+)$").find(cmd)
-            if (openMatch != null) {
-                val raw = openMatch.groupValues[1].trim()
-                val appName = raw.removePrefix("the ").removePrefix("my ").removePrefix("a ").trim()
+            // "go home" / "go back"
+            if (cmd == "go home" || cmd == "home") {
+                return LLMAction(actionType = ActionType.NAVIGATE, value = "home", reasoning = "Going home", confidence = 1.0)
+            }
+            if (cmd == "go back" || cmd == "back") {
+                return LLMAction(actionType = ActionType.NAVIGATE, value = "back", reasoning = "Going back", confidence = 1.0)
+            }
+            if (cmd == "recents" || cmd == "show recents" || cmd == "open recents" ||
+                cmd == "recent apps" || cmd == "show recent apps"
+            ) {
+                return LLMAction(actionType = ActionType.NAVIGATE, value = "recents", reasoning = "Opening recents", confidence = 1.0)
+            }
+            if (cmd == "notifications" || cmd == "show notifications" || cmd == "open notifications" ||
+                cmd == "pull down the notification shade" || cmd == "pull down notifications" ||
+                cmd == "notification shade" || cmd == "open notification shade"
+            ) {
                 return LLMAction(
-                    actionType = ActionType.LAUNCH,
-                    value = appName,
-                    reasoning = "Launching $appName",
-                    confidence = 0.95,
+                    actionType = ActionType.NAVIGATE,
+                    value = "notifications",
+                    reasoning = "Opening notifications",
+                    confidence = 1.0,
                 )
             }
-        }
-
-        // "go home" / "go back"
-        if (cmd == "go home" || cmd == "home") {
-            return LLMAction(actionType = ActionType.NAVIGATE, value = "home", reasoning = "Going home", confidence = 1.0)
-        }
-        if (cmd == "go back" || cmd == "back") {
-            return LLMAction(actionType = ActionType.NAVIGATE, value = "back", reasoning = "Going back", confidence = 1.0)
-        }
-        if (cmd == "recents" || cmd == "show recents" || cmd == "open recents" ||
-            cmd == "recent apps" || cmd == "show recent apps"
-        ) {
-            return LLMAction(actionType = ActionType.NAVIGATE, value = "recents", reasoning = "Opening recents", confidence = 1.0)
-        }
-        if (cmd == "notifications" || cmd == "show notifications" || cmd == "open notifications" ||
-            cmd == "pull down the notification shade" || cmd == "pull down notifications" ||
-            cmd == "notification shade" || cmd == "open notification shade"
-        ) {
-            return LLMAction(actionType = ActionType.NAVIGATE, value = "notifications", reasoning = "Opening notifications", confidence = 1.0)
-        }
-        // "go to the home screen" → home
-        if (cmd.contains("home screen") || cmd == "go to home") {
-            return LLMAction(actionType = ActionType.NAVIGATE, value = "home", reasoning = "Going home", confidence = 1.0)
-        }
-
-        return null
-    }
-
-    private suspend fun handleCloud(
-        command: String,
-        uiTree: UITree,
-        tier: LLMTier,
-    ): NeuronResult<LLMResponse> {
-        val systemPrompt = buildSystemPrompt(command)
-        val workflowHint = getWorkflowHint(command, uiTree.packageName)
-        val userMessage = buildUserMessage(command, uiTree, workflowHint)
-
-        val result = clientManager.generate(tier, systemPrompt, userMessage)
-
-        if (result is NeuronResult.Error) {
-            val fallbackTier = FALLBACK_CHAIN[tier]
-            if (fallbackTier != null) {
-                return clientManager.generate(fallbackTier, systemPrompt, userMessage)
+            // "go to the home screen" → home
+            if (cmd.contains("home screen") || cmd == "go to home") {
+                return LLMAction(actionType = ActionType.NAVIGATE, value = "home", reasoning = "Going home", confidence = 1.0)
             }
+
+            return null
         }
 
-        return result
-    }
+        private suspend fun handleCloud(
+            command: String,
+            uiTree: UITree,
+            tier: LLMTier,
+            characterContext: String? = null,
+        ): NeuronResult<LLMResponse> {
+            val basePrompt = buildSystemPrompt(command)
+            val systemPrompt = ai.neuron.character.prompt.CharacterSystemPrompt.merge(characterContext, basePrompt)
+            val workflowHint = getWorkflowHint(command, uiTree.packageName)
+            val userMessage = buildUserMessage(command, uiTree, workflowHint)
 
-    private fun buildSystemPrompt(command: String): String {
-        return """You are Neuron, an AI agent that controls Android phones.
+            val result = clientManager.generate(tier, systemPrompt, userMessage)
+
+            if (result is NeuronResult.Error) {
+                val fallbackTier = FALLBACK_CHAIN[tier]
+                if (fallbackTier != null) {
+                    return clientManager.generate(fallbackTier, systemPrompt, userMessage)
+                }
+            }
+
+            return result
+        }
+
+        private fun buildSystemPrompt(command: String): String {
+            return """You are Neuron, an AI agent that controls Android phones.
             |Given a UI tree (JSON) and a user command, output a SINGLE next action as JSON.
             |
             |Action schema: {"action_type": "tap|type|swipe|launch|navigate|wait|done|error", "target_id": "node_resource_id", "target_text": "visible_text", "value": "text_or_package", "confidence": 0.0-1.0, "reasoning": "why"}
@@ -192,36 +236,45 @@ class LLMRouter @Inject constructor(
             |10. After typing text in a search bar or URL bar, you MUST submit it: use action_type "navigate" with value "enter" to press Enter, OR use "tap" on a search suggestion/button. Do NOT just type and stop — always follow TYPE with a submit action.
             |11. To open the notification shade, use action_type "navigate" with value "notifications". Do NOT use "swipe" for this.
             |12. If a custom tool is listed below that matches the user's intent, prefer using it by emitting action_type "tool_call" with value set to the tool name and target_text set to JSON-encoded parameters.
-        """.trimMargin() + "\n" + toolRegistry.toPromptSnippet()
-    }
-
-    private fun buildUserMessage(command: String, uiTree: UITree, workflowHint: String?): String {
-        val hint = if (workflowHint != null) {
-            "\n|Previous successful workflow: $workflowHint\n|Use this as a hint but verify against the current UI tree.\n|"
-        } else {
-            ""
+                """.trimMargin() + "\n" + toolRegistry.toPromptSnippet()
         }
-        return """Command: $command
+
+        private fun buildUserMessage(
+            command: String,
+            uiTree: UITree,
+            workflowHint: String?,
+        ): String {
+            val hint =
+                if (workflowHint != null) {
+                    "\n|Previous successful workflow: $workflowHint\n|Use this as a hint but verify against the current UI tree.\n|"
+                } else {
+                    ""
+                }
+            return """Command: $command
             |
             |Current foreground app: ${uiTree.packageName}
             |$hint
             |UI Tree:
             |${uiTree.toJson()}
-        """.trimMargin()
-    }
-
-    private suspend fun getWorkflowHint(command: String, currentPackage: String): String? {
-        // Try to find a cached workflow matching this command
-        val taskKeyword = command.lowercase().trim()
-            .split("\\s+".toRegex())
-            .filter { it.length > 2 }
-            .take(3)
-            .joinToString("_")
-
-        val workflow = longTermMemory.getCachedWorkflow(currentPackage, taskKeyword)
-        if (workflow != null && workflow.successCount > 0) {
-            return workflow.actionSequenceJson
+                """.trimMargin()
         }
-        return null
+
+        private suspend fun getWorkflowHint(
+            command: String,
+            currentPackage: String,
+        ): String? {
+            // Try to find a cached workflow matching this command
+            val taskKeyword =
+                command.lowercase().trim()
+                    .split("\\s+".toRegex())
+                    .filter { it.length > 2 }
+                    .take(3)
+                    .joinToString("_")
+
+            val workflow = longTermMemory.getCachedWorkflow(currentPackage, taskKeyword)
+            if (workflow != null && workflow.successCount > 0) {
+                return workflow.actionSequenceJson
+            }
+            return null
+        }
     }
-}

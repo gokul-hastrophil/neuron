@@ -80,17 +80,19 @@ class NvidiaQwenClient(
         private const val TAG = "NeuronNvidia"
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-        explicitNulls = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            explicitNulls = false
+        }
 
-    private val api: NvidiaApi = Retrofit.Builder()
-        .baseUrl("https://integrate.api.nvidia.com/")
-        .client(okHttpClient)
-        .build()
-        .create(NvidiaApi::class.java)
+    private val api: NvidiaApi =
+        Retrofit.Builder()
+            .baseUrl("https://integrate.api.nvidia.com/")
+            .client(okHttpClient)
+            .build()
+            .create(NvidiaApi::class.java)
 
     private val apiKey: String get() = BuildConfig.NVIDIA_API_KEY
 
@@ -109,41 +111,44 @@ class NvidiaQwenClient(
             }
             messages.add(NvidiaMessage(role = "user", content = userMessage))
 
-            val request = NvidiaRequest(
-                model = model,
-                messages = messages,
-                maxTokens = maxTokens,
-                temperature = temperature,
-                stream = false,
-                chatTemplateKwargs = if (enableThinking) ChatTemplateKwargs(enableThinking = true) else null,
-            )
+            val request =
+                NvidiaRequest(
+                    model = model,
+                    messages = messages,
+                    maxTokens = maxTokens,
+                    temperature = temperature,
+                    stream = false,
+                    chatTemplateKwargs = if (enableThinking) ChatTemplateKwargs(enableThinking = true) else null,
+                )
 
             val requestJson = json.encodeToString(NvidiaRequest.serializer(), request)
             val body = requestJson.toRequestBody("application/json".toMediaType())
 
             val startTime = System.currentTimeMillis()
-            val rawBody = try {
-                api.chatCompletion(
-                    authorization = "Bearer $apiKey",
-                    body = body,
-                )
-            } catch (e: retrofit2.HttpException) {
-                val latency = System.currentTimeMillis() - startTime
-                val errorBody = e.response()?.errorBody()?.string() ?: "no body"
-                Log.e(TAG, "NVIDIA HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
-                return NeuronResult.Error("NVIDIA API HTTP ${e.code()}: ${errorBody.take(200)}", e)
-            }
+            val rawBody =
+                try {
+                    api.chatCompletion(
+                        authorization = "Bearer $apiKey",
+                        body = body,
+                    )
+                } catch (e: retrofit2.HttpException) {
+                    val latency = System.currentTimeMillis() - startTime
+                    val errorBody = e.response()?.errorBody()?.string() ?: "no body"
+                    Log.e(TAG, "NVIDIA HTTP ${e.code()} (${latency}ms): ${errorBody.take(300)}")
+                    return NeuronResult.Error("NVIDIA API HTTP ${e.code()}: ${errorBody.take(200)}", e)
+                }
             val latency = System.currentTimeMillis() - startTime
 
             val responseJson = rawBody.string()
             Log.d(TAG, "NVIDIA raw response (${responseJson.length} chars, ${latency}ms)")
             val response = json.decodeFromString(NvidiaResponse.serializer(), responseJson)
 
-            val text = response.choices
-                ?.firstOrNull()
-                ?.message
-                ?.content
-                ?: return NeuronResult.Error("Empty response from NVIDIA Qwen")
+            val text =
+                response.choices
+                    ?.firstOrNull()
+                    ?.message
+                    ?.content
+                    ?: return NeuronResult.Error("Empty response from NVIDIA Qwen")
 
             // Strip thinking tags if present
             val cleanText = stripThinkingTags(text)
@@ -156,12 +161,13 @@ class NvidiaQwenClient(
                 return NeuronResult.Error("Failed to parse NVIDIA response as action JSON: ${cleanText.take(200)}")
             }
 
-            val finalResponse = llmResponse.copy(
-                tier = "T3",
-                modelId = model,
-                latencyMs = latency,
-                tokensUsed = totalTokens,
-            )
+            val finalResponse =
+                llmResponse.copy(
+                    tier = "T3",
+                    modelId = model,
+                    latencyMs = latency,
+                    tokensUsed = totalTokens,
+                )
             Log.d(TAG, "NVIDIA success: action=${finalResponse.action?.actionType}, target=${finalResponse.action?.targetId}")
             NeuronResult.Success(finalResponse)
         } catch (e: Exception) {
@@ -183,8 +189,9 @@ class NvidiaQwenClient(
     private fun parseAsLLMResponse(text: String): LLMResponse? {
         return try {
             val resp = LLMResponse.fromJson(text)
-            if (resp.action != null) resp
-            else {
+            if (resp.action != null) {
+                resp
+            } else {
                 val action = json.decodeFromString(LLMAction.serializer(), text)
                 LLMResponse(action = action)
             }

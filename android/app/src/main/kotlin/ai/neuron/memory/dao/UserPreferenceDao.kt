@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserPreferenceDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(preference: UserPreference): Long
 
@@ -22,7 +21,10 @@ interface UserPreferenceDao {
     suspend fun delete(preference: UserPreference)
 
     @Query("SELECT * FROM user_preferences WHERE category = :category AND `key` = :key LIMIT 1")
-    suspend fun findByKey(category: String, key: String): UserPreference?
+    suspend fun findByKey(
+        category: String,
+        key: String,
+    ): UserPreference?
 
     @Query("SELECT * FROM user_preferences WHERE category = :category ORDER BY updatedAt DESC")
     suspend fun findByCategory(category: String): List<UserPreference>

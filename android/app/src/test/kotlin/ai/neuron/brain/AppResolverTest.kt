@@ -10,7 +10,6 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("AppResolver")
 class AppResolverTest {
-
     private lateinit var pm: PackageManager
     private lateinit var resolver: AppResolver
 
@@ -31,7 +29,6 @@ class AppResolverTest {
     @Nested
     @DisplayName("Known apps map")
     inner class KnownApps {
-
         @Test
         fun should_resolveSettings_when_knownAppName() {
             every { pm.getLaunchIntentForPackage("com.android.settings") } returns mockk()
@@ -77,7 +74,6 @@ class AppResolverTest {
     @Nested
     @DisplayName("Package name validation")
     inner class PackageNameValidation {
-
         @Test
         fun should_returnPackage_when_launchIntentExists() {
             every { pm.getLaunchIntentForPackage("com.example.app") } returns mockk()
@@ -95,7 +91,6 @@ class AppResolverTest {
     @Nested
     @DisplayName("Fuzzy label matching")
     inner class FuzzyLabelMatching {
-
         @Test
         fun should_resolveByExactLabel_when_installedAppMatchesLabel() {
             val appInfo = ApplicationInfo().apply { packageName = "org.telegram.messenger" }
@@ -135,7 +130,6 @@ class AppResolverTest {
     @Nested
     @DisplayName("Intent-based resolution fallback")
     inner class IntentBasedResolution {
-
         @Test
         fun should_resolveDialerViaIntent_when_packageResolutionFails() {
             every { pm.getInstalledApplications(any<Int>()) } returns emptyList()
@@ -228,7 +222,6 @@ class AppResolverTest {
     @Nested
     @DisplayName("Intent keyword matching")
     inner class IntentKeywordMatching {
-
         @Test
         fun should_matchDialerKeywords() {
             val keywords = listOf("telephone", "call", "dial", "ring", "phone", "dialer")
@@ -306,7 +299,6 @@ class AppResolverTest {
     @Nested
     @DisplayName("Resolution priority")
     inner class ResolutionPriority {
-
         @Test
         fun should_preferKnownApp_when_bothKnownAndIntentMatch() {
             every { pm.getLaunchIntentForPackage("com.android.settings") } returns mockk()
@@ -333,11 +325,15 @@ class AppResolverTest {
         }
     }
 
-    private fun createResolveInfo(packageName: String, activityName: String): ResolveInfo {
-        val actInfo = ActivityInfo().apply {
-            this.packageName = packageName
-            this.name = activityName
-        }
+    private fun createResolveInfo(
+        packageName: String,
+        activityName: String,
+    ): ResolveInfo {
+        val actInfo =
+            ActivityInfo().apply {
+                this.packageName = packageName
+                this.name = activityName
+            }
         return ResolveInfo().apply {
             this.activityInfo = actInfo
         }

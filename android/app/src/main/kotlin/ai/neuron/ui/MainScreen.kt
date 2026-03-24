@@ -1,9 +1,8 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package ai.neuron.ui
 
-import android.Manifest
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
@@ -45,7 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 
 @Composable
 fun MainScreen(
@@ -58,10 +56,11 @@ fun MainScreen(
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(48.dp))
@@ -100,9 +99,10 @@ fun MainScreen(
         if (isAccessibilityEnabled) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -167,10 +167,11 @@ private fun ActivationCard(
                 val pulseScale by transition.animateFloat(
                     initialValue = 1f,
                     targetValue = 1.3f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
+                    animationSpec =
+                        infiniteRepeatable(
+                            animation = tween(1000),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
                     label = "dotPulse",
                 )
 
@@ -180,10 +181,11 @@ private fun ActivationCard(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .scale(pulseScale)
-                            .background(Color(0xFF69F0AE), CircleShape),
+                        modifier =
+                            Modifier
+                                .size(12.dp)
+                                .scale(pulseScale)
+                                .background(Color(0xFF69F0AE), CircleShape),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
@@ -244,12 +246,13 @@ private fun PermissionRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(8.dp)
-                .background(
-                    if (granted) Color(0xFF69F0AE) else Color(0xFFFF8A80),
-                    CircleShape,
-                ),
+            modifier =
+                Modifier
+                    .size(8.dp)
+                    .background(
+                        if (granted) Color(0xFF69F0AE) else Color(0xFFFF8A80),
+                        CircleShape,
+                    ),
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
@@ -261,9 +264,10 @@ private fun PermissionRow(
         if (!granted) {
             Button(
                 onClick = onAction,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
             ) {
                 Text(buttonText, fontSize = 13.sp)
             }
@@ -279,16 +283,20 @@ private fun PermissionRow(
 }
 
 @Composable
-private fun HowToRow(step: String, text: String) {
+private fun HowToRow(
+    step: String,
+    text: String,
+) {
     Row(
         modifier = Modifier.padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(22.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape),
+            modifier =
+                Modifier
+                    .size(22.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
         ) {
             Text(
                 text = step,

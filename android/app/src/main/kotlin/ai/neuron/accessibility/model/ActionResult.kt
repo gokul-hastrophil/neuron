@@ -1,7 +1,6 @@
 package ai.neuron.accessibility.model
 
 sealed class ActionResult {
-
     data class Success(
         val action: NeuronAction,
         val verified: Boolean = false,

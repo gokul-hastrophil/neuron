@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class SpeechRecognitionServiceTest {
-
     private lateinit var service: SpeechRecognitionManager
 
     @BeforeEach
@@ -21,7 +20,6 @@ class SpeechRecognitionServiceTest {
     @Nested
     @DisplayName("State management")
     inner class StateManagement {
-
         @Test
         fun should_beIdle_when_created() {
             assertEquals(SpeechRecognitionManager.State.IDLE, service.state.value)
@@ -58,7 +56,6 @@ class SpeechRecognitionServiceTest {
     @Nested
     @DisplayName("Partial results")
     inner class PartialResults {
-
         @Test
         fun should_storePartialResults_when_receivedDuringListening() {
             service.onRecognitionStarted()
@@ -86,7 +83,6 @@ class SpeechRecognitionServiceTest {
     @Nested
     @DisplayName("Final results")
     inner class FinalResults {
-
         @Test
         fun should_storeFinalResult_when_recognitionComplete() {
             service.onRecognitionStarted()
@@ -119,7 +115,6 @@ class SpeechRecognitionServiceTest {
     @Nested
     @DisplayName("Error handling")
     inner class ErrorHandling {
-
         @Test
         fun should_storeErrorMessage_when_errorOccurs() {
             service.onRecognitionStarted()
@@ -138,7 +133,6 @@ class SpeechRecognitionServiceTest {
     @Nested
     @DisplayName("Availability")
     inner class Availability {
-
         @Test
         fun should_notBeListening_when_idle() {
             assertFalse(service.isListening)

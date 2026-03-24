@@ -1,11 +1,11 @@
 package ai.neuron.input
 
-import android.content.Context
-import android.util.Log
 import ai.picovoice.porcupine.Porcupine
+import ai.picovoice.porcupine.PorcupineException
 import ai.picovoice.porcupine.PorcupineManager
 import ai.picovoice.porcupine.PorcupineManagerCallback
-import ai.picovoice.porcupine.PorcupineException
+import android.content.Context
+import android.util.Log
 
 /**
  * Wraps Porcupine wake word detection.
@@ -50,16 +50,18 @@ class WakeWordService(
         }
 
         return try {
-            val callback = PorcupineManagerCallback { keywordIndex ->
-                Log.i(TAG, "Wake word detected! keyword=$keyword index=$keywordIndex")
-                onWakeWordDetected?.invoke()
-            }
+            val callback =
+                PorcupineManagerCallback { keywordIndex ->
+                    Log.i(TAG, "Wake word detected! keyword=$keyword index=$keywordIndex")
+                    onWakeWordDetected?.invoke()
+                }
 
-            porcupineManager = PorcupineManager.Builder()
-                .setAccessKey(accessKey)
-                .setKeyword(keyword)
-                .setSensitivity(0.7f)
-                .build(context, callback)
+            porcupineManager =
+                PorcupineManager.Builder()
+                    .setAccessKey(accessKey)
+                    .setKeyword(keyword)
+                    .setSensitivity(0.7f)
+                    .build(context, callback)
 
             porcupineManager?.start()
             isRunning = true

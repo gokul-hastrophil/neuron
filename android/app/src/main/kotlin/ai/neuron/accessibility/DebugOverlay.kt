@@ -14,7 +14,6 @@ import android.view.WindowManager
 class DebugOverlay(
     private val service: NeuronAccessibilityService,
 ) {
-
     private var debugView: DebugBoundsView? = null
     var isEnabled: Boolean = false
         private set
@@ -32,17 +31,18 @@ class DebugOverlay(
         Log.d(TAG, "Debug overlay enabled")
 
         val view = DebugBoundsView(service)
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-        }
+        val params =
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+            }
 
         try {
             windowManager.addView(view, params)
@@ -72,33 +72,37 @@ class DebugOverlay(
     class DebugBoundsView(context: Context) : View(context) {
         private var nodes: List<UINode> = emptyList()
 
-        private val clickablePaint = Paint().apply {
-            color = Color.BLUE
-            style = Paint.Style.STROKE
-            strokeWidth = 3f
-            alpha = 180
-        }
+        private val clickablePaint =
+            Paint().apply {
+                color = Color.BLUE
+                style = Paint.Style.STROKE
+                strokeWidth = 3f
+                alpha = 180
+            }
 
-        private val scrollablePaint = Paint().apply {
-            color = Color.GREEN
-            style = Paint.Style.STROKE
-            strokeWidth = 3f
-            alpha = 180
-        }
+        private val scrollablePaint =
+            Paint().apply {
+                color = Color.GREEN
+                style = Paint.Style.STROKE
+                strokeWidth = 3f
+                alpha = 180
+            }
 
-        private val editablePaint = Paint().apply {
-            color = Color.YELLOW
-            style = Paint.Style.STROKE
-            strokeWidth = 3f
-            alpha = 180
-        }
+        private val editablePaint =
+            Paint().apply {
+                color = Color.YELLOW
+                style = Paint.Style.STROKE
+                strokeWidth = 3f
+                alpha = 180
+            }
 
-        private val defaultPaint = Paint().apply {
-            color = Color.GRAY
-            style = Paint.Style.STROKE
-            strokeWidth = 2f
-            alpha = 120
-        }
+        private val defaultPaint =
+            Paint().apply {
+                color = Color.GRAY
+                style = Paint.Style.STROKE
+                strokeWidth = 2f
+                alpha = 120
+            }
 
         fun setNodes(newNodes: List<UINode>) {
             nodes = newNodes
@@ -110,15 +114,19 @@ class DebugOverlay(
             drawNodes(canvas, nodes)
         }
 
-        private fun drawNodes(canvas: Canvas, nodes: List<UINode>) {
+        private fun drawNodes(
+            canvas: Canvas,
+            nodes: List<UINode>,
+        ) {
             for (node in nodes) {
                 val bounds = node.bounds ?: continue
-                val paint = when {
-                    node.editable -> editablePaint
-                    node.clickable -> clickablePaint
-                    node.scrollable -> scrollablePaint
-                    else -> defaultPaint
-                }
+                val paint =
+                    when {
+                        node.editable -> editablePaint
+                        node.clickable -> clickablePaint
+                        node.scrollable -> scrollablePaint
+                        else -> defaultPaint
+                    }
                 canvas.drawRect(
                     bounds.left.toFloat(),
                     bounds.top.toFloat(),
