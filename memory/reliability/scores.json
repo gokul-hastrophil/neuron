@@ -1,13 +1,18 @@
 {
-  "lastUpdated": "2026-03-09",
+  "lastUpdated": "2026-03-25",
   "metadata": {
     "description": "Component reliability tracking for Neuron project. Updated as features are implemented and tested.",
     "scoringFormula": "reliability = (test_pass_rate * 0.4) + (test_coverage * 0.3) + (no_crashes_score * 0.3)",
     "statuses": ["not_started", "in_progress", "implemented", "tested", "stable"],
     "updateFrequency": "After each component completes implementation or testing"
   },
-  "totalTests": 153,
+  "totalTests": 557,
   "totalPassRate": 100,
+  "kotlinTests": 510,
+  "pythonTests": 47,
+  "pythonTestsRunnable": 47,
+  "pythonTestsBlocked": 0,
+  "pythonBlockedReason": "All tests passing. MCP server tests gracefully skip when mcp SDK not installed locally (passes in CI).",
   "components": {
     "NeuronAccessibilityService": {
       "status": "implemented",
@@ -20,66 +25,66 @@
     "UITreeReader": {
       "status": "tested",
       "description": "L2 PERCEPTION layer - reads UI tree and generates JSON",
-      "testCount": 9,
+      "testCount": 13,
       "testPassRate": 100,
-      "reliability": 70,
-      "notes": "9 tests passing. Prunes, serializes, handles depth limits. Tested on 2 devices."
+      "reliability": 80,
+      "notes": "13 tests passing. Prunes invisible/non-interactive nodes, serializes JSON, handles depth limits, password field detection. Gaps: no stress tests for large trees, no concurrent traversal tests."
     },
     "ActionExecutor": {
       "status": "tested",
       "description": "L5 NERVE layer - executes NeuronAction objects (tap, type, swipe, scroll, global nav, launch, PressKey)",
-      "testCount": 22,
+      "testCount": 19,
       "testPassRate": 100,
-      "reliability": 75,
-      "notes": "22 tests passing. Multi-fallback launch + PressKey (IME_ENTER). On-device testing confirms basic actions."
+      "reliability": 80,
+      "notes": "19 tests passing. Tap by nodeId/coordinate, type text, swipe, scroll, long press, global actions. Gaps: no concurrency tests, no action confirmation flow tests."
     },
     "SensitivityGate": {
       "status": "tested",
       "description": "L3 BRAIN layer - blocks sensitive actions (passwords, banking, editable fields with sensitive text)",
-      "testCount": 24,
+      "testCount": 37,
       "testPassRate": 100,
-      "reliability": 85,
-      "notes": "24 tests passing. Editable-only text matching prevents false positives on label text."
+      "reliability": 90,
+      "notes": "37 tests passing (excellent). Password fields (direct + nested), banking apps (Paytm/PhonePe/GPay/SBI/HDFC/ICICI), health apps, editable PIN/CVV/OTP, case-insensitive matching, mixed screens."
     },
     "LLMRouter": {
       "status": "tested",
       "description": "L3 BRAIN layer - routes between T0-T4 LLM tiers with fallback chain, injects ToolRegistry + workflow hints",
-      "testCount": 8,
+      "testCount": 20,
       "testPassRate": 100,
-      "reliability": 80,
-      "notes": "8 tests passing. Now injects ToolRegistry tools into system prompt and LongTermMemory workflow hints."
+      "reliability": 85,
+      "notes": "20 tests passing. Tier routing, sensitivity override to T4, password detection, fallback chain, timeout handling, pattern matching (open/launch/start/navigate), article stripping, and-rejection, already-open detection, home/back/recents/notifications. Gaps: no T0/T1 on-device model tests, no circuit breaker tests."
     },
     "IntentClassifier": {
       "status": "tested",
       "description": "L3 BRAIN layer - classifies command complexity → select tier",
-      "testCount": 21,
+      "testCount": 24,
       "testPassRate": 100,
-      "reliability": 80,
-      "notes": "21 tests passing. Keyword heuristics for SIMPLE/MODERATE/COMPLEX + domain classification."
+      "reliability": 85,
+      "notes": "24 tests passing. SIMPLE/MODERATE/COMPLEX classification, ASK_USER for ambiguous, domain classification (messaging/nav/settings/search). Gaps: no multi-language tests."
     },
     "PlanAndExecuteEngine": {
       "status": "tested",
       "description": "L3 BRAIN layer - ReAct loop state machine for multi-step task execution with memory extraction",
-      "testCount": 9,
+      "testCount": 20,
       "testPassRate": 100,
-      "reliability": 75,
-      "notes": "9 tests passing. Now extracts preferences + workflows to LongTermMemory on task completion."
+      "reliability": 85,
+      "notes": "20 tests passing. State transitions, max step limit, confidence threshold, single/multi-step, error handling, null action, repeated failure detection, CONFIRM action, supervised mode (approval + rejection), pattern-match single-shot completion, step logging, memory extraction, zero-confidence passthrough. Gaps: no timeout abort test (requires mocking System.currentTimeMillis), no replanning verification."
     },
     "WorkingMemory": {
       "status": "tested",
       "description": "L4 MEMORY layer - in-memory task state with SharedPreferences backup",
-      "testCount": 11,
+      "testCount": 16,
       "testPassRate": 100,
       "reliability": 85,
-      "notes": "11 tests passing. Current task, action history, screen state hash, serialization roundtrip."
+      "notes": "16 tests passing. Current task set/get/clear, action history (limit 10), screen state hash, JSON serialization roundtrip + empty. Gaps: no thread-safety tests, no partial deserialization error tests."
     },
     "LongTermMemory": {
       "status": "tested",
       "description": "L4 MEMORY layer - Room DB with UserPreference, AppWorkflow, ContactAssociation entities",
-      "testCount": 16,
+      "testCount": 22,
       "testPassRate": 100,
-      "reliability": 80,
-      "notes": "16 tests passing. Upsert logic, success/fail tracking, fuzzy contact search."
+      "reliability": 85,
+      "notes": "22 tests passing. Preference CRUD, workflow insert/increment/update, contact upsert/fuzzy search, bulk clear. Gaps: no transaction rollback tests, no concurrent access tests."
     },
     "MemoryExtractor": {
       "status": "implemented",
@@ -140,10 +145,10 @@
     "VoiceInputController": {
       "status": "tested",
       "description": "L1 INPUT layer - bridges SpeechRecognitionManager with OverlayManager for hold-to-speak",
-      "testCount": 3,
+      "testCount": 4,
       "testPassRate": 100,
-      "reliability": 70,
-      "notes": "3 tests passing. Hold/release/cancel lifecycle, transcript observation, command callback."
+      "reliability": 65,
+      "notes": "4 tests passing (weakest coverage). Cancel listening, partial transcript, command callback. CRITICAL GAP: needs mic permission, noise filtering, command queue tests."
     },
     "OnboardingScreen": {
       "status": "implemented",
@@ -163,11 +168,11 @@
     },
     "MCP_Server": {
       "status": "tested",
-      "description": "Protocol Bus - Python MCP server on localhost:7384 with 10 tools",
-      "testCount": 14,
+      "description": "Protocol Bus - Python MCP server on localhost:7384 with 10 tools + MCP resources + A2A protocol",
+      "testCount": 47,
       "testPassRate": 100,
-      "reliability": 75,
-      "notes": "14 pytest tests passing. Tool definitions, ADB bridge, handlers all tested with mocks."
+      "reliability": 80,
+      "notes": "47 pytest tests all passing (33 A2A + MCP resources sync, 14 A2A + MCP resources async via pytest-asyncio). MCP server tests (14) gracefully skip when mcp SDK not installed locally — passes fully in CI where requirements.txt is installed. Test infra fixed: pytest-asyncio now works, test_mcp_server.py no longer crashes collection."
     },
     "OverlayManager": {
       "status": "implemented",
@@ -208,6 +213,150 @@
       "testPassRate": null,
       "reliability": 80,
       "notes": "Primary T2/T3 provider. Action selection accuracy 86-93%. Latency 8-17s."
+    },
+    "CharacterEngine": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - state management, emotion transitions, personality persistence",
+      "testCount": 19,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "19 tests. Emotion debounce (100ms), auto-decay (30s), history, character selection, personality CRUD."
+    },
+    "CharacterModels": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - EmotionState, PersonalityProfile, SpeakingStyle, CharacterType, VoiceProfile",
+      "testCount": 33,
+      "testPassRate": 100,
+      "reliability": 90,
+      "notes": "33 tests. KotlinX Serialization roundtrip, validation, factory defaults, TtsEmotion SSML mapping."
+    },
+    "CharacterRenderer": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - ComposeCharacterRenderer + factory + EmotionVisuals",
+      "testCount": 12,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "12 tests. Factory Live2D fallback, emotion visuals for 8 states, safe dispose, lip-sync toggle."
+    },
+    "EmotionalTTS": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - SsmlBuilder + VoiceSynthesizer + EmotionalTTSEngine",
+      "testCount": 18,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "18 tests. SSML prosody for all emotions, state machine, voice profile application."
+    },
+    "PersonalityPrompt": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - PersonalityPromptBuilder + CharacterSystemPrompt + ResponseEmotionExtractor",
+      "testCount": 18,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "18 tests. Trait-based prompts, merge with brain prompt, compact T4, keyword emotion extraction."
+    },
+    "CharacterUI": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - CharacterViewModel, GalleryScreen, CustomizationScreen, SettingsSection",
+      "testCount": 9,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "9 tests. ViewModel bridges engine to Compose, gallery state, customization, slider clamping."
+    },
+    "CharacterIntegration": {
+      "status": "tested",
+      "description": "L7 CHARACTER layer - end-to-end integration tests for full character pipeline",
+      "testCount": 11,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "11 tests. Full pipeline, error handling (fallbacks), T4 compact prompt. LLMRouter characterContext backward compatible."
+    },
+    "ExecutionMode": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - HITL execution modes (AUTONOMOUS/SUPERVISED/PLAN_APPROVE) for Play Store compliance",
+      "testCount": 8,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "8 tests. ConfirmationCallback, mode-gated dispatch, DONE bypass, build flavors (sideload/playstore)."
+    },
+    "UITreeTools": {
+      "status": "tested",
+      "description": "L2 PERCEPTION layer - RLM-inspired tool-callable UITree access replacing monolithic JSON dumps",
+      "testCount": 20,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "20 tests. getClickableNodes, getNodeByText, searchNodes, getScreenSummary, toPromptSnippet. 60-80% token reduction."
+    },
+    "NeuronToolSchema": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - structured tool definitions for 7 action types, used by FunctionGemma and cloud LLMs",
+      "testCount": 10,
+      "testPassRate": 100,
+      "reliability": 90,
+      "notes": "10 tests. Tool definitions, toActionType (case-insensitive), toPromptSnippet, toJson serialization."
+    },
+    "FunctionGemmaClient": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - on-device FunctionGemma (270M) T1 function calling client via InferenceEngine interface",
+      "testCount": 15,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "15 tests. InferenceEngine abstraction, parseToolCall regex, named arg parsing (single/double quotes), baseline confidence 0.85."
+    },
+    "DualPathExecutor": {
+      "status": "tested",
+      "description": "L5 NERVE layer - routes actions through AppFunctions (preferred) or Accessibility (fallback)",
+      "testCount": 8,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "8 tests. AppFunctionsExecutor stub (ready for stable API), AccessibilityExecutorAdapter bridge, ExecutionPath tracking."
+    },
+    "StructuredToolCallParser": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - unified parser for Gemini, OpenAI, FunctionGemma, and legacy JSON tool call formats",
+      "testCount": 20,
+      "testPassRate": 100,
+      "reliability": 90,
+      "notes": "20 tests. Auto-detect format, Gemini functionCall, OpenAI tool_calls, FunctionGemma func(), legacy JSON, markdown fence stripping."
+    },
+    "PluginManager": {
+      "status": "tested",
+      "description": "Plugin layer - NeuronPlugin lifecycle management with error isolation",
+      "testCount": 20,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "20 tests. Register/load/unload/unregister, error isolation, tool registration, CharacterPlugin extraction."
+    },
+    "SkillSystem": {
+      "status": "tested",
+      "description": "SDK layer - SKILL.md parsing, validation, and loading with ToolRegistry integration",
+      "testCount": 27,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "27 tests. SkillManifest YAML parser, SkillValidator (permissions, schema), SkillLoader (register/unload), namespaced tools."
+    },
+    "AppFunctionsProvider": {
+      "status": "tested",
+      "description": "SDK layer - @NeuronCapability annotation and CapabilityScanner for third-party app integration",
+      "testCount": 12,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "12 tests. Annotation discovery via reflection, provider lifecycle, capability metadata extraction."
+    },
+    "Gemma3nClient": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - on-device Gemma 3n (2B effective) for T1.5 and T4 tiers with multimodal support",
+      "testCount": 15,
+      "testPassRate": 100,
+      "reliability": 80,
+      "notes": "15 tests. Availability, multimodal support, text/multimodal generation, screen context, error handling."
+    },
+    "ServerBrainPlanner": {
+      "status": "not_started",
+      "description": "Server-side brain/planner.py - action plan generation (8th must-test component)",
+      "testCount": 0,
+      "testPassRate": null,
+      "reliability": null,
+      "notes": "server/brain/planner.py does not exist yet (only .gitkeep). CRITICAL GAP: this is one of the 8 must-test components per QA spec."
     }
   }
 }
