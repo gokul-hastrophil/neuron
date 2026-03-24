@@ -14,8 +14,10 @@ import ai.neuron.memory.MemoryExtractor
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.coVerify
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -224,6 +226,226 @@ class PlanAndExecuteEngineTest {
                 // Should eventually error after retries or continue to next step
                 val hasError = states.any { it is EngineState.Error || it is EngineState.Done }
                 assertTrue(hasError)
+            }
+
+        @Test
+        fun should_terminateWithError_when_llmReturnsNullAction() =
+            runTest {
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(
+                        LLMResponse(action = null),
+                    )
+
+                val states = engine.execute("do something").toList()
+                assertTrue(states.last() is EngineState.Error)
+                assertTrue((states.last() as EngineState.Error).message.contains("no action"))
+            }
+    }
+
+    @Nested
+    @DisplayName("Repeated failure detection")
+    inner class RepeatedFailureDetection {
+        @Test
+        fun should_terminateWithError_when_sameActionFailsThreeTimes() =
+            runTest {
+                val failAction = LLMAction(actionType = ActionType.TAP, targetId = "btn_broken", confidence = 0.9)
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(LLMResponse(action = failAction))
+                coEvery { actionDispatcher.dispatch(any()) } returns false
+
+                val states = engine.execute("tap broken button").toList()
+                val lastState = states.last()
+                assertTrue(lastState is EngineState.Error)
+                assertTrue((lastState as EngineState.Error).message.contains("fail", ignoreCase = true))
+            }
+    }
+
+    @Nested
+    @DisplayName("CONFIRM action type")
+    inner class ConfirmAction {
+        @Test
+        fun should_waitForUser_when_confirmActionReturned() =
+            runTest {
+                val confirmAction = LLMAction(
+                    actionType = ActionType.CONFIRM,
+                    reasoning = "Confirm send message?",
+                    confidence = 0.95,
+                )
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(LLMResponse(action = confirmAction))
+
+                val states = engine.execute("send message").toList()
+                assertTrue(states.any { it is EngineState.WaitingForUser })
+            }
+    }
+
+    @Nested
+    @DisplayName("Supervised execution mode")
+    inner class SupervisedMode {
+        @Test
+        fun should_emitConfirmingAction_when_supervisedMode() =
+            runTest {
+                engine.executionMode = ExecutionMode.SUPERVISED
+
+                val tapAction = LLMAction(actionType = ActionType.TAP, targetId = "btn", confidence = 0.9)
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                engine.confirmationCallback =
+                    object : PlanAndExecuteEngine.ConfirmationCallback {
+                        override suspend fun confirmAction(stepIndex: Int, action: LLMAction): Boolean = true
+                        override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = true
+                    }
+
+                coEvery { router.route(any(), any(), any()) } returnsMany
+                    listOf(
+                        NeuronResult.Success(LLMResponse(action = tapAction)),
+                        NeuronResult.Success(LLMResponse(action = doneAction)),
+                    )
+
+                val states = engine.execute("tap button").toList()
+                assertTrue(states.any { it is EngineState.ConfirmingAction })
+                assertTrue(states.last() is EngineState.Done)
+            }
+
+        @Test
+        fun should_cancelExecution_when_userRejectsAction() =
+            runTest {
+                engine.executionMode = ExecutionMode.SUPERVISED
+
+                val tapAction = LLMAction(actionType = ActionType.TAP, targetId = "btn", confidence = 0.9)
+
+                engine.confirmationCallback =
+                    object : PlanAndExecuteEngine.ConfirmationCallback {
+                        override suspend fun confirmAction(stepIndex: Int, action: LLMAction): Boolean = false
+                        override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = false
+                    }
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(LLMResponse(action = tapAction))
+
+                val states = engine.execute("tap button").toList()
+                assertTrue(states.last() is EngineState.Done)
+                assertTrue((states.last() as EngineState.Done).message.contains("cancel", ignoreCase = true))
+            }
+    }
+
+    @Nested
+    @DisplayName("Pattern-match single-shot completion")
+    inner class PatternMatchCompletion {
+        @Test
+        fun should_completeSingleShot_when_patternMatchLaunchSucceeds() =
+            runTest {
+                val launchAction = LLMAction(
+                    actionType = ActionType.LAUNCH,
+                    value = "whatsapp",
+                    confidence = 0.95,
+                )
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(
+                        LLMResponse(action = launchAction, modelId = "pattern-match"),
+                    )
+
+                val states = engine.execute("open whatsapp").toList()
+                assertTrue(states.last() is EngineState.Done)
+            }
+
+        @Test
+        fun should_completeSingleShot_when_patternMatchNavigateSucceeds() =
+            runTest {
+                val navAction = LLMAction(
+                    actionType = ActionType.NAVIGATE,
+                    value = "home",
+                    confidence = 1.0,
+                )
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(
+                        LLMResponse(action = navAction, modelId = "pattern-match"),
+                    )
+
+                val states = engine.execute("go home").toList()
+                assertTrue(states.last() is EngineState.Done)
+            }
+    }
+
+    @Nested
+    @DisplayName("Step logging")
+    inner class StepLogging {
+        @Test
+        fun should_logSteps_when_actionsExecuted() =
+            runTest {
+                val tapAction = LLMAction(actionType = ActionType.TAP, targetId = "btn", confidence = 0.9)
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                coEvery { router.route(any(), any(), any()) } returnsMany
+                    listOf(
+                        NeuronResult.Success(LLMResponse(action = tapAction)),
+                        NeuronResult.Success(LLMResponse(action = doneAction)),
+                    )
+
+                engine.execute("tap then done").toList()
+
+                assertEquals(2, engine.stepLogs.size)
+                assertTrue(engine.stepLogs[0].success)
+                assertTrue(engine.stepLogs[1].success)
+            }
+
+        @Test
+        fun should_clearStepLogs_when_newExecutionStarts() =
+            runTest {
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(LLMResponse(action = doneAction))
+
+                engine.execute("task 1").toList()
+                assertEquals(1, engine.stepLogs.size)
+
+                engine.execute("task 2").toList()
+                assertEquals(1, engine.stepLogs.size)
+            }
+    }
+
+    @Nested
+    @DisplayName("Memory extraction")
+    inner class MemoryExtraction {
+        @Test
+        fun should_extractMemory_when_taskCompletes() =
+            runTest {
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95, reasoning = "Done")
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(LLMResponse(action = doneAction))
+
+                engine.execute("open settings").toList()
+
+                coVerify { memoryExtractor.extractFromCompletedTask(eq("open settings"), any(), any()) }
+            }
+    }
+
+    @Nested
+    @DisplayName("Zero-confidence passthrough")
+    inner class ZeroConfidencePassthrough {
+        @Test
+        fun should_treatZeroConfidenceAsUnspecified_when_llmOmitsConfidence() =
+            runTest {
+                // confidence=0.0 means "not specified" — should be treated as 1.0 (trust the action)
+                val tapAction = LLMAction(actionType = ActionType.TAP, targetId = "btn", confidence = 0.0)
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                coEvery { router.route(any(), any(), any()) } returnsMany
+                    listOf(
+                        NeuronResult.Success(LLMResponse(action = tapAction)),
+                        NeuronResult.Success(LLMResponse(action = doneAction)),
+                    )
+
+                val states = engine.execute("tap button").toList()
+                // Should NOT trigger WaitingForUser — 0.0 is treated as "not specified"
+                assertTrue(states.none { it is EngineState.WaitingForUser })
+                assertTrue(states.last() is EngineState.Done)
             }
     }
 }

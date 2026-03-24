@@ -16,6 +16,8 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -237,6 +239,209 @@ class LLMRouterTest {
 
                 val result = router.route("test", normalTree, classification)
                 assertTrue(result is NeuronResult.Success)
+            }
+    }
+
+    @Nested
+    @DisplayName("Pattern matching — open/launch commands")
+    inner class PatternMatchOpen {
+        // Use a tree where the foreground app is NOT the one being opened
+        private val homeTree =
+            UITree(
+                packageName = "com.android.launcher3",
+                nodes = listOf(UINode(id = "home", text = "Home")),
+            )
+
+        @Test
+        fun should_matchOpenApp_when_simpleOpenCommand() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T1)
+
+                val result = router.route("open WhatsApp", homeTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals("pattern-match", response.modelId)
+                assertEquals(ActionType.LAUNCH, response.action?.actionType)
+                assertEquals("whatsapp", response.action?.value)
+            }
+
+        @Test
+        fun should_matchLaunchApp_when_launchSynonym() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T1)
+
+                val result = router.route("launch Settings", homeTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.LAUNCH, response.action?.actionType)
+                assertEquals("settings", response.action?.value)
+            }
+
+        @Test
+        fun should_stripArticles_when_openCommandHasArticle() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T1)
+
+                val result = router.route("open the Camera", homeTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals("camera", response.action?.value)
+            }
+
+        @Test
+        fun should_notMatchPattern_when_commandContainsAnd() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.MODERATE, suggestedTier = LLMTier.T2)
+
+                coEvery {
+                    clientManager.generate(LLMTier.T2, any(), any())
+                } returns NeuronResult.Success(successResponse)
+
+                val result = router.route("open WhatsApp and message John", homeTree, classification)
+
+                // Should NOT pattern-match due to "and" — should go to cloud
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals("T2", response.tier)
+            }
+
+        @Test
+        fun should_returnDone_when_requestedAppAlreadyOpen() =
+            runTest {
+                val whatsappTree =
+                    UITree(
+                        packageName = "com.whatsapp",
+                        nodes = listOf(UINode(id = "chat", text = "Chat")),
+                    )
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T1)
+
+                val result = router.route("open whatsapp", whatsappTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.DONE, response.action?.actionType)
+                assertTrue(response.action?.reasoning?.contains("already open") == true)
+            }
+    }
+
+    @Nested
+    @DisplayName("Pattern matching — navigation commands")
+    inner class PatternMatchNavigation {
+        @Test
+        fun should_matchGoHome_when_homeCommand() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T0)
+
+                val result = router.route("go home", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.NAVIGATE, response.action?.actionType)
+                assertEquals("home", response.action?.value)
+            }
+
+        @Test
+        fun should_matchGoBack_when_backCommand() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T0)
+
+                val result = router.route("go back", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.NAVIGATE, response.action?.actionType)
+                assertEquals("back", response.action?.value)
+            }
+
+        @Test
+        fun should_matchRecents_when_recentsCommand() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T0)
+
+                val result = router.route("show recents", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.NAVIGATE, response.action?.actionType)
+                assertEquals("recents", response.action?.value)
+            }
+
+        @Test
+        fun should_matchNotifications_when_notificationCommand() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T0)
+
+                val result = router.route("show notifications", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.NAVIGATE, response.action?.actionType)
+                assertEquals("notifications", response.action?.value)
+            }
+
+        @Test
+        fun should_matchHomeScreen_when_goToHomeScreen() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T0)
+
+                val result = router.route("go to the home screen", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.NAVIGATE, response.action?.actionType)
+                assertEquals("home", response.action?.value)
+            }
+
+        @Test
+        fun should_matchPullDownNotifications_when_verboseCommand() =
+            runTest {
+                val classification =
+                    IntentClassification(complexity = Complexity.SIMPLE, suggestedTier = LLMTier.T0)
+
+                val result = router.route("pull down the notification shade", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals(ActionType.NAVIGATE, response.action?.actionType)
+                assertEquals("notifications", response.action?.value)
+            }
+    }
+
+    @Nested
+    @DisplayName("Pattern matching — no match")
+    inner class PatternMatchNoMatch {
+        @Test
+        fun should_routeToCloud_when_noPatternMatches() =
+            runTest {
+                val classification =
+                    IntentClassification(
+                        complexity = Complexity.MODERATE,
+                        suggestedTier = LLMTier.T2,
+                        estimatedSteps = 3,
+                    )
+
+                coEvery {
+                    clientManager.generate(LLMTier.T2, any(), any())
+                } returns NeuronResult.Success(successResponse)
+
+                val result = router.route("send a message to John saying hello", normalTree, classification)
+
+                assertTrue(result is NeuronResult.Success)
+                val response = (result as NeuronResult.Success).data
+                assertEquals("T2", response.tier)
             }
     }
 }

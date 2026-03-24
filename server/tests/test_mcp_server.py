@@ -1,17 +1,32 @@
 """Tests for Neuron MCP Server tool handlers."""
 
 import json
+import importlib.util
+import os
+import sys
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 # Import the module under test
-import sys
-import os
+SERVER_DIR = os.path.join(os.path.dirname(__file__), "..")
+sys.path.insert(0, SERVER_DIR)
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Skip entire module if the mcp SDK is not installed — neuron_mcp_server.py
+# imports from mcp.server at module level and will fail without it.
+try:
+    _spec = importlib.util.spec_from_file_location(
+        "neuron_mcp_server",
+        os.path.join(SERVER_DIR, "mcp", "neuron_mcp_server.py"),
+    )
+    _mod = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
 
-from mcp.neuron_mcp_server import adb, call_tool, TOOLS
+    adb = _mod.adb
+    call_tool = _mod.call_tool
+    TOOLS = _mod.TOOLS
+except (ImportError, ModuleNotFoundError):
+    pytest.skip("mcp SDK not installed — skipping MCP server tests", allow_module_level=True)
 
 
 class TestToolDefinitions:
@@ -77,7 +92,7 @@ class TestToolHandlers:
         mock_rpc = AsyncMock(return_value={
             "result": {"packageName": "com.whatsapp", "nodes": [{"id": "chat"}]},
         })
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_read_ui_tree", {})
             assert result.content[0].text
             parsed = json.loads(result.content[0].text)
@@ -88,7 +103,7 @@ class TestToolHandlers:
         mock_rpc = AsyncMock(return_value={
             "result": {"imageBase64": "aGVsbG8="},
         })
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_take_screenshot", {})
             assert len(result.content) == 2
             assert result.content[0].text == "Screenshot captured"
@@ -96,7 +111,7 @@ class TestToolHandlers:
     @pytest.mark.asyncio
     async def test_tap_should_call_rpc_with_element_id(self):
         mock_rpc = AsyncMock(return_value={"result": {"success": True}})
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_tap", {"element_id": "btn_send"})
             assert "succeeded" in result.content[0].text
             mock_rpc.assert_called_once()
@@ -106,7 +121,7 @@ class TestToolHandlers:
     @pytest.mark.asyncio
     async def test_type_text_should_send_text(self):
         mock_rpc = AsyncMock(return_value={"result": {}})
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_type_text", {"text": "hello world"})
             assert "successfully" in result.content[0].text
 
@@ -115,14 +130,14 @@ class TestToolHandlers:
         mock_rpc = AsyncMock(return_value={
             "result": {"packageName": "com.whatsapp"},
         })
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_launch_app", {"package_name": "com.whatsapp"})
             assert "com.whatsapp" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_navigate_should_perform_action(self):
         mock_rpc = AsyncMock(return_value={"result": {}})
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_navigate", {"action": "home"})
             assert "home" in result.content[0].text
 
@@ -131,7 +146,7 @@ class TestToolHandlers:
         mock_rpc = AsyncMock(return_value={
             "result": {"status": "completed", "summary": "Opened calculator", "stepsCompleted": 2},
         })
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_run_task", {"goal": "open calculator"})
             text = result.content[0].text
             assert "completed" in text
@@ -145,7 +160,7 @@ class TestToolHandlers:
     @pytest.mark.asyncio
     async def test_tool_exception_should_return_error(self):
         mock_rpc = AsyncMock(side_effect=RuntimeError("ADB disconnected"))
-        with patch("mcp.neuron_mcp_server.neuron_rpc", mock_rpc):
+        with patch.object(_mod, "neuron_rpc", mock_rpc):
             result = await call_tool("neuron_read_ui_tree", {})
             assert result.isError is True
             assert "ADB disconnected" in result.content[0].text
