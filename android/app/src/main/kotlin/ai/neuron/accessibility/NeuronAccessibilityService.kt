@@ -76,7 +76,7 @@ class NeuronAccessibilityService : AccessibilityService() {
 
         // Wire final voice command → brain service
         voice.setOnCommandReady { command ->
-            Log.i(TAG, "Voice command received: $command")
+            Log.d(TAG, "Voice command received (${command.length} chars)")
             overlay.statusText.value = command
             sendCommandToBrain(command)
         }

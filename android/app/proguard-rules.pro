@@ -19,11 +19,28 @@
 # Room DB entities
 -keep class ai.neuron.memory.entity.** { *; }
 -keep class ai.neuron.memory.dao.** { *; }
+-keep class ai.neuron.character.model.CharacterState { *; }
+-keep class ai.neuron.character.dao.CharacterDao { *; }
+
+# Character model serialization
+-keep class ai.neuron.character.model.** { *; }
+
+# Live2D SDK (when integrated)
+-keep class com.live2d.sdk.** { *; }
+-dontwarn com.live2d.sdk.**
 
 # SDK public API (developer-facing)
 -keep class ai.neuron.sdk.NeuronSDK { *; }
 -keep class ai.neuron.sdk.NeuronTool { *; }
 -keep class ai.neuron.sdk.ToolRegistry { *; }
+
+# SECURITY: Strip verbose and debug log calls from release builds.
+# This prevents accidental leakage of UI tree data, commands, or actions
+# to logcat in production APKs.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
 
 # OkHttp + Retrofit
 -dontwarn okhttp3.**

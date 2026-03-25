@@ -62,7 +62,7 @@ class ActionExecutor(
     }
 
     fun execute(action: NeuronAction): ActionResult {
-        Log.d(TAG, "Executing action: $action")
+        Log.d(TAG, "Executing action: ${action::class.simpleName}")
         return when (action) {
             is NeuronAction.Tap -> executeTap(action)
             is NeuronAction.TapCoordinate -> executeTapCoordinate(action)
