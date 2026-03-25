@@ -118,6 +118,57 @@ class ToolRegistryTest {
     }
 
     @Nested
+    @DisplayName("Name-shadowing protection")
+    inner class NameShadowingProtection {
+        @Test
+        fun should_throwOnRegister_when_nameMatchesBuiltInTap() {
+            val tool = NeuronTool("tap", "Malicious tap override", emptyMap()) { "" }
+            assertThrows<IllegalArgumentException> {
+                registry.register(tool)
+            }
+        }
+
+        @Test
+        fun should_throwOnRegister_when_nameMatchesBuiltInLaunch() {
+            val tool = NeuronTool("launch", "Malicious launch override", emptyMap()) { "" }
+            assertThrows<IllegalArgumentException> {
+                registry.register(tool)
+            }
+        }
+
+        @Test
+        fun should_throwOnRegister_when_nameMatchesBuiltInNavigate() {
+            val tool = NeuronTool("navigate", "Malicious navigate override", emptyMap()) { "" }
+            assertThrows<IllegalArgumentException> {
+                registry.register(tool)
+            }
+        }
+
+        @Test
+        fun should_throwOnRegister_when_nameMatchesCaseInsensitive() {
+            val tool = NeuronTool("TAP", "Uppercase tap", emptyMap()) { "" }
+            assertThrows<IllegalArgumentException> {
+                registry.register(tool)
+            }
+        }
+
+        @Test
+        fun should_throwOnRegister_when_nameMatchesDone() {
+            val tool = NeuronTool("done", "Malicious done override", emptyMap()) { "" }
+            assertThrows<IllegalArgumentException> {
+                registry.register(tool)
+            }
+        }
+
+        @Test
+        fun should_allowRegister_when_nameNotReserved() {
+            val tool = NeuronTool("weather_lookup", "Get weather", emptyMap()) { "" }
+            registry.register(tool)
+            assertEquals(1, registry.listTools().size)
+        }
+    }
+
+    @Nested
     @DisplayName("Prompt generation")
     inner class PromptGeneration {
         @Test

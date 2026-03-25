@@ -16,8 +16,6 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -30,6 +28,7 @@ class LLMRouterTest {
     private lateinit var clientManager: LLMClientManager
     private lateinit var longTermMemory: LongTermMemory
     private lateinit var toolRegistry: ToolRegistry
+    private lateinit var promptSanitizer: PromptSanitizer
 
     private val normalTree =
         UITree(
@@ -56,7 +55,8 @@ class LLMRouterTest {
         clientManager = mockk()
         longTermMemory = mockk(relaxed = true)
         toolRegistry = ToolRegistry()
-        router = LLMRouter(sensitivityGate, clientManager, longTermMemory, toolRegistry)
+        promptSanitizer = PromptSanitizer()
+        router = LLMRouter(sensitivityGate, clientManager, longTermMemory, toolRegistry, promptSanitizer)
     }
 
     @Nested

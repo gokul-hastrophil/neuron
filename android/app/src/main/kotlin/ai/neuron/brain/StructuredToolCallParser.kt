@@ -179,15 +179,25 @@ class StructuredToolCallParser
             actionType: ActionType,
             args: JsonObject,
         ): LLMAction {
+            // Extract LLM-provided confidence if present; fall back to 0.85 baseline
+            // for structured tool calls (higher than legacy JSON default of 0.0).
+            val llmConfidence =
+                args["confidence"]?.jsonPrimitive?.content?.toDoubleOrNull()
+            val effectiveConfidence = llmConfidence ?: DEFAULT_STRUCTURED_CONFIDENCE
+
             return LLMAction(
                 actionType = actionType,
                 targetId = args["target_id"]?.jsonPrimitive?.content,
                 targetText = args["target_text"]?.jsonPrimitive?.content,
                 value = args["value"]?.jsonPrimitive?.content,
                 reasoning = args["reasoning"]?.jsonPrimitive?.content,
-                // Structured tool calling has higher baseline confidence
-                confidence = 0.9,
+                confidence = effectiveConfidence.coerceIn(0.0, 1.0),
             )
+        }
+
+        companion object {
+            /** Default confidence for structured tool calls when LLM doesn't provide one. */
+            const val DEFAULT_STRUCTURED_CONFIDENCE = 0.85
         }
 
         private fun parseNamedArgs(argsString: String): Map<String, String> {

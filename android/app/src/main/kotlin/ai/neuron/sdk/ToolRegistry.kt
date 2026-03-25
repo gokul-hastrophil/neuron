@@ -9,7 +9,24 @@ class ToolRegistry
     constructor() {
         private val tools = mutableMapOf<String, NeuronTool>()
 
+        companion object {
+            /**
+             * Built-in action names that third-party tools must NEVER shadow.
+             * Shadowing these would allow a malicious tool to intercept core
+             * Neuron actions (tap, navigate, etc.) via LLM tool_call routing.
+             */
+            val RESERVED_TOOL_NAMES =
+                setOf(
+                    "tap", "type", "swipe", "launch", "navigate",
+                    "done", "error", "wait", "confirm", "tool_call",
+                )
+        }
+
         fun register(tool: NeuronTool) {
+            val normalized = tool.name.lowercase()
+            require(normalized !in RESERVED_TOOL_NAMES) {
+                "Tool name '${tool.name}' shadows a built-in Neuron action and cannot be registered"
+            }
             require(tool.name !in tools) { "Tool '${tool.name}' is already registered" }
             tools[tool.name] = tool
         }

@@ -23,6 +23,7 @@ class LLMRouter
         private val clientManager: LLMClientManager,
         private val longTermMemory: LongTermMemory,
         private val toolRegistry: ToolRegistry,
+        private val promptSanitizer: PromptSanitizer,
     ) {
         /** Optional on-device clients. Injected when available. */
         var functionGemmaClient: FunctionGemmaClient? = null
@@ -200,10 +201,16 @@ class LLMRouter
             tier: LLMTier,
             characterContext: String? = null,
         ): NeuronResult<LLMResponse> {
-            val basePrompt = buildSystemPrompt(command)
+            // SECURITY: Sanitize UI tree text before embedding in prompts.
+            // Defends against prompt injection via malicious on-screen text.
+            val sanitizedTree = promptSanitizer.sanitizeForPrompt(uiTree)
+            val sanitizedCommand = promptSanitizer.sanitizeCommand(command)
+
+            val basePrompt = buildSystemPrompt(sanitizedCommand)
             val systemPrompt = ai.neuron.character.prompt.CharacterSystemPrompt.merge(characterContext, basePrompt)
             val workflowHint = getWorkflowHint(command, uiTree.packageName)
-            val userMessage = buildUserMessage(command, uiTree, workflowHint)
+            val sanitizedHint = workflowHint?.let { promptSanitizer.sanitizeWorkflowHint(it) }
+            val userMessage = buildUserMessage(sanitizedCommand, sanitizedTree, sanitizedHint)
 
             val result = clientManager.generate(tier, systemPrompt, userMessage)
 
