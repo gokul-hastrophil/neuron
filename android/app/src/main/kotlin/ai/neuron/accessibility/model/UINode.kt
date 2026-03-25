@@ -7,6 +7,7 @@ data class UINode(
     val id: String = "",
     val text: String? = null,
     val desc: String? = null,
+    val hintText: String? = null,
     val className: String? = null,
     val bounds: Bounds? = null,
     val clickable: Boolean = false,

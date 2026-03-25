@@ -65,6 +65,7 @@ class UITreeReader(
             id = node.viewIdResourceName.orEmpty(),
             text = node.text?.toString(),
             desc = node.contentDescription?.toString(),
+            hintText = node.hintText?.toString(),
             className = node.className?.toString(),
             bounds = Bounds(left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom),
             clickable = node.isClickable,
