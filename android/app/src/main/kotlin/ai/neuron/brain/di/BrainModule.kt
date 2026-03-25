@@ -154,24 +154,28 @@ object BrainModule {
         return service.rootInActiveWindow?.packageName?.toString()
     }
 
+    /**
+     * Sanitize ALL configured API keys from log messages.
+     * Covers every BuildConfig key field to prevent accidental leakage.
+     */
     private fun sanitizeApiKeys(message: String): String {
         var sanitized = message
-        val geminiKey = BuildConfig.GEMINI_API_KEY
-        if (geminiKey.isNotEmpty()) {
-            sanitized = sanitized.replace(geminiKey, "***GEMINI_KEY***")
-        }
-        val nvidiaKey = BuildConfig.NVIDIA_API_KEY
-        if (nvidiaKey.isNotEmpty()) {
-            sanitized = sanitized.replace(nvidiaKey, "***NVIDIA_KEY***")
-        }
-        val openRouterKey = BuildConfig.OPENROUTER_API_KEY
-        if (openRouterKey.isNotEmpty()) {
-            sanitized = sanitized.replace(openRouterKey, "***OPENROUTER_KEY***")
-        }
-        val ollamaKey = BuildConfig.OLLAMA_API_KEY
-        if (ollamaKey.isNotEmpty()) {
-            sanitized = sanitized.replace(ollamaKey, "***OLLAMA_KEY***")
+        for ((key, label) in API_KEYS_TO_SANITIZE) {
+            if (key.isNotEmpty()) {
+                sanitized = sanitized.replace(key, "***$label***")
+            }
         }
         return sanitized
+    }
+
+    private val API_KEYS_TO_SANITIZE by lazy {
+        listOf(
+            BuildConfig.ANTHROPIC_API_KEY to "ANTHROPIC_KEY",
+            BuildConfig.GEMINI_API_KEY to "GEMINI_KEY",
+            BuildConfig.NVIDIA_API_KEY to "NVIDIA_KEY",
+            BuildConfig.OPENROUTER_API_KEY to "OPENROUTER_KEY",
+            BuildConfig.OLLAMA_API_KEY to "OLLAMA_KEY",
+            BuildConfig.PICOVOICE_ACCESS_KEY to "PICOVOICE_KEY",
+        )
     }
 }
