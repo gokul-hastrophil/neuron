@@ -90,6 +90,7 @@ class PromptSanitizer
             node.copy(
                 text = sanitizeText(node.text),
                 desc = sanitizeText(node.desc),
+                hintText = sanitizeText(node.hintText),
                 children = node.children.map { sanitizeNode(it) },
             )
 
@@ -126,6 +127,7 @@ class PromptSanitizer
         ) {
             checkField(node.id, "text", node.text, detections)
             checkField(node.id, "desc", node.desc, detections)
+            checkField(node.id, "hintText", node.hintText, detections)
             node.children.forEach { collectInjections(it, detections) }
         }
 
