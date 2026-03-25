@@ -2,6 +2,7 @@
 
 package ai.neuron.ui.audit
 
+import ai.neuron.memory.entity.AuditEntry
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,15 +24,6 @@ import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-
-data class AuditEntry(
-    val timestamp: Long,
-    val actionType: String,
-    val targetApp: String,
-    val command: String,
-    val success: Boolean,
-    val reasoning: String? = null,
-)
 
 @Composable
 fun AuditLogScreen(entries: List<AuditEntry>) {
@@ -111,7 +103,7 @@ private fun AuditEntryCard(entry: AuditEntry) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = entry.targetApp,
+                text = entry.targetPackage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

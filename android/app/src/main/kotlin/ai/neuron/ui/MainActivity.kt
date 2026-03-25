@@ -2,6 +2,7 @@ package ai.neuron.ui
 
 import ai.neuron.BuildConfig
 import ai.neuron.brain.ExecutionMode
+import ai.neuron.memory.AuditRepository
 import ai.neuron.ui.audit.AuditLogScreen
 import ai.neuron.ui.onboarding.OnboardingScreen
 import ai.neuron.ui.settings.NeuronSettings
@@ -19,15 +20,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var auditRepository: AuditRepository
+
     private var isAccessibilityEnabled = mutableStateOf(false)
     private var isMicrophoneGranted = mutableStateOf(false)
 
@@ -79,7 +85,11 @@ class MainActivity : ComponentActivity() {
                                     onViewAuditLog = { currentScreen = "audit" },
                                     onBack = { currentScreen = "main" },
                                 )
-                            "audit" -> AuditLogScreen(entries = emptyList())
+                            "audit" -> {
+                                val auditEntries by auditRepository.observeAll()
+                                    .collectAsState(initial = emptyList())
+                                AuditLogScreen(entries = auditEntries)
+                            }
                             else ->
                                 MainScreen(
                                     isAccessibilityEnabled = isAccessibilityEnabled.value,
