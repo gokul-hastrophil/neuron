@@ -20,6 +20,9 @@ class ToolRegistry
                     "tap", "type", "swipe", "launch", "navigate",
                     "done", "error", "wait", "confirm", "tool_call",
                 )
+
+            private val VALID_TOOL_NAME = Regex("^[a-zA-Z0-9_:./-]{1,64}$")
+            private const val MAX_DESCRIPTION_LENGTH = 500
         }
 
         fun register(tool: NeuronTool) {
@@ -28,6 +31,12 @@ class ToolRegistry
                 "Tool name '${tool.name}' shadows a built-in Neuron action and cannot be registered"
             }
             require(tool.name !in tools) { "Tool '${tool.name}' is already registered" }
+            require(VALID_TOOL_NAME.matches(tool.name)) {
+                "Tool name must be alphanumeric/underscore/hyphen, 1-64 chars"
+            }
+            require(tool.description.length <= MAX_DESCRIPTION_LENGTH) {
+                "Tool description exceeds $MAX_DESCRIPTION_LENGTH characters"
+            }
             tools[tool.name] = tool
         }
 

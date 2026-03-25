@@ -155,19 +155,19 @@ class NeuronToolSchema
                 append("[")
                 tools.forEachIndexed { i, tool ->
                     if (i > 0) append(",")
-                    append("{\"name\":\"${tool.name}\",\"description\":\"${tool.description}\"")
+                    append("{\"name\":\"${escapeJson(tool.name)}\",\"description\":\"${escapeJson(tool.description)}\"")
                     append(",\"parameters\":{\"type\":\"OBJECT\",\"properties\":{")
                     val required = mutableListOf<String>()
                     tool.parameters.forEachIndexed { j, param ->
                         if (j > 0) append(",")
-                        append("\"${param.name}\":{\"type\":\"STRING\",\"description\":\"${param.description}\"")
+                        append("\"${escapeJson(param.name)}\":{\"type\":\"STRING\",\"description\":\"${escapeJson(param.description)}\"")
                         if (param.enumValues != null) {
-                            append(",\"enum\":[${param.enumValues.joinToString(",") { "\"$it\"" }}]")
+                            append(",\"enum\":[${param.enumValues.joinToString(",") { "\"${escapeJson(it)}\"" }}]")
                         }
                         append("}")
                         if (param.required) required.add(param.name)
                     }
-                    append("},\"required\":[${required.joinToString(",") { "\"$it\"" }}]}}")
+                    append("},\"required\":[${required.joinToString(",") { "\"${escapeJson(it)}\"" }}]}}")
                 }
                 append("]")
             }
@@ -181,20 +181,20 @@ class NeuronToolSchema
                 append("[")
                 tools.forEachIndexed { i, tool ->
                     if (i > 0) append(",")
-                    append("{\"type\":\"function\",\"function\":{\"name\":\"${tool.name}\"")
-                    append(",\"description\":\"${tool.description}\"")
+                    append("{\"type\":\"function\",\"function\":{\"name\":\"${escapeJson(tool.name)}\"")
+                    append(",\"description\":\"${escapeJson(tool.description)}\"")
                     append(",\"parameters\":{\"type\":\"object\",\"properties\":{")
                     val required = mutableListOf<String>()
                     tool.parameters.forEachIndexed { j, param ->
                         if (j > 0) append(",")
-                        append("\"${param.name}\":{\"type\":\"string\",\"description\":\"${param.description}\"")
+                        append("\"${escapeJson(param.name)}\":{\"type\":\"string\",\"description\":\"${escapeJson(param.description)}\"")
                         if (param.enumValues != null) {
-                            append(",\"enum\":[${param.enumValues.joinToString(",") { "\"$it\"" }}]")
+                            append(",\"enum\":[${param.enumValues.joinToString(",") { "\"${escapeJson(it)}\"" }}]")
                         }
                         append("}")
                         if (param.required) required.add(param.name)
                     }
-                    append("},\"required\":[${required.joinToString(",") { "\"$it\"" }}]}}}")
+                    append("},\"required\":[${required.joinToString(",") { "\"${escapeJson(it)}\"" }}]}}}")
                 }
                 append("]")
             }
@@ -204,6 +204,31 @@ class NeuronToolSchema
                 Json {
                     encodeDefaults = true
                     prettyPrint = false
+                }
+
+            /**
+             * Escape a string for safe inclusion in JSON string values.
+             * Prevents JSON structure injection via malicious tool names/descriptions.
+             */
+            fun escapeJson(value: String): String =
+                buildString(value.length + 16) {
+                    for (c in value) {
+                        when (c) {
+                            '"' -> append("\\\"")
+                            '\\' -> append("\\\\")
+                            '\n' -> append("\\n")
+                            '\r' -> append("\\r")
+                            '\t' -> append("\\t")
+                            '\b' -> append("\\b")
+                            '\u000C' -> append("\\f")
+                            else ->
+                                if (c.code < 0x20) {
+                                    append("\\u%04x".format(c.code))
+                                } else {
+                                    append(c)
+                                }
+                        }
+                    }
                 }
         }
     }

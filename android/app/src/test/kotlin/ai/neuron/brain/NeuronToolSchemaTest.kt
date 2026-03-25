@@ -2,6 +2,7 @@ package ai.neuron.brain
 
 import ai.neuron.brain.model.ActionType
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -106,6 +107,57 @@ class NeuronToolSchemaTest {
             val json = schema.toJson()
             assertTrue(json.contains("\"name\":\"tap\""))
             assertTrue(json.contains("\"name\":\"launch\""))
+        }
+    }
+
+    @Nested
+    @DisplayName("JSON escaping (injection prevention)")
+    inner class JsonEscaping {
+        @Test
+        fun should_escapeDoubleQuotes() {
+            val escaped = NeuronToolSchema.escapeJson("say \"hello\"")
+            assertEquals("say \\\"hello\\\"", escaped)
+        }
+
+        @Test
+        fun should_escapeBackslashes() {
+            val escaped = NeuronToolSchema.escapeJson("path\\to\\file")
+            assertEquals("path\\\\to\\\\file", escaped)
+        }
+
+        @Test
+        fun should_escapeNewlines() {
+            val escaped = NeuronToolSchema.escapeJson("line1\nline2")
+            assertEquals("line1\\nline2", escaped)
+        }
+
+        @Test
+        fun should_escapeControlCharacters() {
+            val escaped = NeuronToolSchema.escapeJson("tab\there")
+            assertEquals("tab\\there", escaped)
+        }
+
+        @Test
+        fun should_notAlterSafeStrings() {
+            val safe = "Tap a UI element by its resource ID"
+            assertEquals(safe, NeuronToolSchema.escapeJson(safe))
+        }
+
+        @Test
+        fun should_produceValidGeminiJson_when_builtInTools() {
+            val json = schema.toGeminiToolsJson()
+            // Should be valid JSON array — verify balanced brackets
+            assertTrue(json.startsWith("["))
+            assertTrue(json.endsWith("]"))
+            assertFalse(json.contains("null"))
+        }
+
+        @Test
+        fun should_produceValidOpenAIJson_when_builtInTools() {
+            val json = schema.toOpenAIToolsJson()
+            assertTrue(json.startsWith("["))
+            assertTrue(json.endsWith("]"))
+            assertTrue(json.contains("\"type\":\"function\""))
         }
     }
 }
