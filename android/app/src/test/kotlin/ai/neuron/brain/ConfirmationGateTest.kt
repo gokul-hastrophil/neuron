@@ -1,4 +1,4 @@
-package ai.neuron.accessibility
+package ai.neuron.brain
 
 import ai.neuron.brain.model.ActionType
 import ai.neuron.brain.model.LLMAction
@@ -83,6 +83,73 @@ class ConfirmationGateTest {
                 )
             assertTrue(gate.requiresConfirmation(action))
         }
+
+        @Test
+        fun should_requireConfirmation_when_reasoningContainsIrreversible() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TAP,
+                    targetText = "Continue",
+                    reasoning = "This will send the payment",
+                    confidence = 0.9,
+                )
+            assertTrue(gate.requiresConfirmation(action))
+        }
+
+        @Test
+        fun should_requireConfirmation_when_valueContainsIrreversible() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TYPE,
+                    value = "delete all messages",
+                    confidence = 0.9,
+                )
+            assertTrue(gate.requiresConfirmation(action))
+        }
+
+        @Test
+        fun should_requireConfirmation_when_uninstallKeyword() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TAP,
+                    targetText = "Uninstall",
+                    confidence = 0.9,
+                )
+            assertTrue(gate.requiresConfirmation(action))
+        }
+
+        @Test
+        fun should_requireConfirmation_when_buyKeyword() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TAP,
+                    targetText = "Buy Now",
+                    confidence = 0.95,
+                )
+            assertTrue(gate.requiresConfirmation(action))
+        }
+
+        @Test
+        fun should_requireConfirmation_when_publishKeyword() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TAP,
+                    targetText = "Publish Post",
+                    confidence = 0.95,
+                )
+            assertTrue(gate.requiresConfirmation(action))
+        }
+
+        @Test
+        fun should_requireConfirmation_when_shareKeyword() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TAP,
+                    targetText = "Share with everyone",
+                    confidence = 0.95,
+                )
+            assertTrue(gate.requiresConfirmation(action))
+        }
     }
 
     @Nested
@@ -130,6 +197,17 @@ class ConfirmationGateTest {
                     actionType = ActionType.NAVIGATE,
                     value = "home",
                     confidence = 0.95,
+                )
+            assertFalse(gate.requiresConfirmation(action))
+        }
+
+        @Test
+        fun should_notRequireConfirmation_when_zeroConfidenceTreatedAsUnspecified() {
+            val action =
+                LLMAction(
+                    actionType = ActionType.TAP,
+                    targetText = "Open",
+                    confidence = 0.0,
                 )
             assertFalse(gate.requiresConfirmation(action))
         }

@@ -6,6 +6,7 @@ import ai.neuron.brain.model.EngineState
 import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.NeuronResult
 import ai.neuron.brain.model.StepLog
+import ai.neuron.memory.AuditRepository
 import ai.neuron.memory.MemoryExtractor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,8 @@ class PlanAndExecuteEngine
         private val uiProvider: UIProvider,
         private val actionDispatcher: ActionDispatcher,
         private val memoryExtractor: MemoryExtractor,
+        private val confirmationGate: ConfirmationGate,
+        private val auditRepository: AuditRepository,
     ) {
         companion object {
             const val MAX_STEPS = 20
@@ -59,10 +62,12 @@ class PlanAndExecuteEngine
 
         private val _stepLogs = mutableListOf<StepLog>()
         val stepLogs: List<StepLog> get() = _stepLogs.toList()
+        private var currentCommand: String = ""
 
         fun execute(command: String): Flow<EngineState> =
             flow {
                 _stepLogs.clear()
+                currentCommand = command
                 emit(EngineState.Planning(command))
 
                 val classification = classifier.classify(command)
@@ -124,8 +129,11 @@ class PlanAndExecuteEngine
                                         return@flow
                                     }
 
-                                    // HITL: In SUPERVISED mode, ask user before each action
-                                    if (executionMode == ExecutionMode.SUPERVISED) {
+                                    // SECURITY: ConfirmationGate enforced in ALL modes.
+                                    // Irreversible actions (send, pay, delete) always need user approval.
+                                    val needsConfirmation = confirmationGate.requiresConfirmation(action)
+
+                                    if (executionMode == ExecutionMode.SUPERVISED || needsConfirmation) {
                                         emit(EngineState.ConfirmingAction(stepIndex, action))
                                         val approved = confirmationCallback?.confirmAction(stepIndex, action) ?: true
                                         if (!approved) {
@@ -186,7 +194,7 @@ class PlanAndExecuteEngine
                 emit(EngineState.Error("Max steps ($MAX_STEPS) exceeded"))
             }
 
-        private fun logStep(
+        private suspend fun logStep(
             stepIndex: Int,
             uiTree: UITree,
             tier: String?,
@@ -194,6 +202,7 @@ class PlanAndExecuteEngine
             success: Boolean,
             stepStartTime: Long,
         ) {
+            val durationMs = System.currentTimeMillis() - stepStartTime
             _stepLogs.add(
                 StepLog(
                     stepIndex = stepIndex,
@@ -201,8 +210,24 @@ class PlanAndExecuteEngine
                     llmTier = tier,
                     action = action,
                     success = success,
-                    durationMs = System.currentTimeMillis() - stepStartTime,
+                    durationMs = durationMs,
                 ),
             )
+
+            // Persist to Room audit log (hard rule #8)
+            try {
+                auditRepository.logAction(
+                    actionType = action.actionType.name,
+                    targetPackage = uiTree.packageName,
+                    command = currentCommand,
+                    success = success,
+                    reasoning = action.reasoning,
+                    stepIndex = stepIndex,
+                    llmTier = tier,
+                    durationMs = durationMs,
+                )
+            } catch (_: Exception) {
+                // Audit persistence failure must not crash the engine
+            }
         }
     }

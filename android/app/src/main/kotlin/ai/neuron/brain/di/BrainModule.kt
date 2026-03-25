@@ -50,7 +50,10 @@ object BrainModule {
                     val sanitized = sanitizeApiKeys(message)
                     android.util.Log.d("NeuronHttp", sanitized)
                 }.apply {
-                    level = HttpLoggingInterceptor.Level.BODY
+                    // SECURITY: Never use Level.BODY — it leaks full UITree JSON,
+                    // system prompts, and user commands to logcat where any app
+                    // with READ_LOGS permission (or ADB access) can read them.
+                    level = HttpLoggingInterceptor.Level.HEADERS
                 }
             builder.addInterceptor(loggingInterceptor)
         }

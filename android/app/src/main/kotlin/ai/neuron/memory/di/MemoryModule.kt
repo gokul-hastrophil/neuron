@@ -3,6 +3,7 @@ package ai.neuron.memory.di
 import ai.neuron.character.dao.CharacterDao
 import ai.neuron.memory.NeuronDatabase
 import ai.neuron.memory.dao.AppWorkflowDao
+import ai.neuron.memory.dao.AuditDao
 import ai.neuron.memory.dao.ContactAssociationDao
 import ai.neuron.memory.dao.UserPreferenceDao
 import android.content.Context
@@ -27,7 +28,7 @@ object MemoryModule {
             NeuronDatabase::class.java,
             "neuron_memory.db",
         )
-            .addMigrations(NeuronDatabase.MIGRATION_1_2)
+            .addMigrations(NeuronDatabase.MIGRATION_1_2, NeuronDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -42,4 +43,7 @@ object MemoryModule {
 
     @Provides
     fun provideCharacterDao(db: NeuronDatabase): CharacterDao = db.characterDao()
+
+    @Provides
+    fun provideAuditDao(db: NeuronDatabase): AuditDao = db.auditDao()
 }

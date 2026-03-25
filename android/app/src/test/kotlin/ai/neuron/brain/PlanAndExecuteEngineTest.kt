@@ -10,11 +10,12 @@ import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
+import ai.neuron.memory.AuditRepository
 import ai.neuron.memory.MemoryExtractor
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.coVerify
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,6 +32,8 @@ class PlanAndExecuteEngineTest {
     private lateinit var uiProvider: PlanAndExecuteEngine.UIProvider
     private lateinit var actionDispatcher: PlanAndExecuteEngine.ActionDispatcher
     private lateinit var memoryExtractor: MemoryExtractor
+    private lateinit var confirmationGate: ConfirmationGate
+    private lateinit var auditRepository: AuditRepository
 
     private val normalTree =
         UITree(
@@ -44,6 +47,8 @@ class PlanAndExecuteEngineTest {
         classifier = mockk()
         uiProvider = mockk()
         actionDispatcher = mockk()
+        confirmationGate = ConfirmationGate()
+        auditRepository = mockk(relaxed = true)
 
         every { classifier.classify(any()) } returns
             IntentClassification(
@@ -56,7 +61,7 @@ class PlanAndExecuteEngineTest {
         coEvery { actionDispatcher.dispatch(any()) } returns true
 
         memoryExtractor = mockk(relaxed = true)
-        engine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor)
+        engine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor, confirmationGate, auditRepository)
     }
 
     @Nested
@@ -267,11 +272,12 @@ class PlanAndExecuteEngineTest {
         @Test
         fun should_waitForUser_when_confirmActionReturned() =
             runTest {
-                val confirmAction = LLMAction(
-                    actionType = ActionType.CONFIRM,
-                    reasoning = "Confirm send message?",
-                    confidence = 0.95,
-                )
+                val confirmAction =
+                    LLMAction(
+                        actionType = ActionType.CONFIRM,
+                        reasoning = "Confirm send message?",
+                        confidence = 0.95,
+                    )
 
                 coEvery { router.route(any(), any(), any()) } returns
                     NeuronResult.Success(LLMResponse(action = confirmAction))
@@ -294,7 +300,11 @@ class PlanAndExecuteEngineTest {
 
                 engine.confirmationCallback =
                     object : PlanAndExecuteEngine.ConfirmationCallback {
-                        override suspend fun confirmAction(stepIndex: Int, action: LLMAction): Boolean = true
+                        override suspend fun confirmAction(
+                            stepIndex: Int,
+                            action: LLMAction,
+                        ): Boolean = true
+
                         override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = true
                     }
 
@@ -318,7 +328,11 @@ class PlanAndExecuteEngineTest {
 
                 engine.confirmationCallback =
                     object : PlanAndExecuteEngine.ConfirmationCallback {
-                        override suspend fun confirmAction(stepIndex: Int, action: LLMAction): Boolean = false
+                        override suspend fun confirmAction(
+                            stepIndex: Int,
+                            action: LLMAction,
+                        ): Boolean = false
+
                         override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = false
                     }
 
@@ -332,16 +346,146 @@ class PlanAndExecuteEngineTest {
     }
 
     @Nested
+    @DisplayName("ConfirmationGate enforcement in AUTONOMOUS mode")
+    inner class ConfirmationGateEnforcement {
+        @Test
+        fun should_confirmDangerousAction_when_autonomousMode() =
+            runTest {
+                engine.executionMode = ExecutionMode.AUTONOMOUS
+
+                val sendAction =
+                    LLMAction(
+                        actionType = ActionType.TAP,
+                        targetText = "Send Message",
+                        confidence = 0.95,
+                    )
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                engine.confirmationCallback =
+                    object : PlanAndExecuteEngine.ConfirmationCallback {
+                        override suspend fun confirmAction(
+                            stepIndex: Int,
+                            action: LLMAction,
+                        ): Boolean = true
+
+                        override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = true
+                    }
+
+                coEvery { router.route(any(), any(), any()) } returnsMany
+                    listOf(
+                        NeuronResult.Success(LLMResponse(action = sendAction)),
+                        NeuronResult.Success(LLMResponse(action = doneAction)),
+                    )
+
+                val states = engine.execute("send a message").toList()
+                // Even in AUTONOMOUS mode, dangerous actions trigger confirmation
+                assertTrue(states.any { it is EngineState.ConfirmingAction })
+                assertTrue(states.last() is EngineState.Done)
+            }
+
+        @Test
+        fun should_cancelDangerousAction_when_userRejectsInAutonomousMode() =
+            runTest {
+                engine.executionMode = ExecutionMode.AUTONOMOUS
+
+                val deleteAction =
+                    LLMAction(
+                        actionType = ActionType.TAP,
+                        targetText = "Delete All",
+                        confidence = 0.95,
+                    )
+
+                engine.confirmationCallback =
+                    object : PlanAndExecuteEngine.ConfirmationCallback {
+                        override suspend fun confirmAction(
+                            stepIndex: Int,
+                            action: LLMAction,
+                        ): Boolean = false
+
+                        override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = false
+                    }
+
+                coEvery { router.route(any(), any(), any()) } returns
+                    NeuronResult.Success(LLMResponse(action = deleteAction))
+
+                val states = engine.execute("delete everything").toList()
+                assertTrue(states.last() is EngineState.Done)
+                assertTrue((states.last() as EngineState.Done).message.contains("cancel", ignoreCase = true))
+            }
+
+        @Test
+        fun should_skipConfirmation_when_safeActionInAutonomousMode() =
+            runTest {
+                engine.executionMode = ExecutionMode.AUTONOMOUS
+
+                val tapAction =
+                    LLMAction(
+                        actionType = ActionType.TAP,
+                        targetId = "chat_item",
+                        targetText = "Open Chat",
+                        confidence = 0.95,
+                    )
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                coEvery { router.route(any(), any(), any()) } returnsMany
+                    listOf(
+                        NeuronResult.Success(LLMResponse(action = tapAction)),
+                        NeuronResult.Success(LLMResponse(action = doneAction)),
+                    )
+
+                val states = engine.execute("open chat").toList()
+                // Safe actions in AUTONOMOUS mode should NOT trigger confirmation
+                assertTrue(states.none { it is EngineState.ConfirmingAction })
+                assertTrue(states.last() is EngineState.Done)
+            }
+
+        @Test
+        fun should_confirmPaymentAction_when_autonomousMode() =
+            runTest {
+                engine.executionMode = ExecutionMode.AUTONOMOUS
+
+                val payAction =
+                    LLMAction(
+                        actionType = ActionType.TAP,
+                        targetText = "Pay Now",
+                        confidence = 0.99,
+                    )
+
+                engine.confirmationCallback =
+                    object : PlanAndExecuteEngine.ConfirmationCallback {
+                        override suspend fun confirmAction(
+                            stepIndex: Int,
+                            action: LLMAction,
+                        ): Boolean = true
+
+                        override suspend fun confirmPlan(actions: List<LLMAction>): Boolean = true
+                    }
+
+                val doneAction = LLMAction(actionType = ActionType.DONE, confidence = 0.95)
+
+                coEvery { router.route(any(), any(), any()) } returnsMany
+                    listOf(
+                        NeuronResult.Success(LLMResponse(action = payAction)),
+                        NeuronResult.Success(LLMResponse(action = doneAction)),
+                    )
+
+                val states = engine.execute("pay the bill").toList()
+                assertTrue(states.any { it is EngineState.ConfirmingAction })
+            }
+    }
+
+    @Nested
     @DisplayName("Pattern-match single-shot completion")
     inner class PatternMatchCompletion {
         @Test
         fun should_completeSingleShot_when_patternMatchLaunchSucceeds() =
             runTest {
-                val launchAction = LLMAction(
-                    actionType = ActionType.LAUNCH,
-                    value = "whatsapp",
-                    confidence = 0.95,
-                )
+                val launchAction =
+                    LLMAction(
+                        actionType = ActionType.LAUNCH,
+                        value = "whatsapp",
+                        confidence = 0.95,
+                    )
 
                 coEvery { router.route(any(), any(), any()) } returns
                     NeuronResult.Success(
@@ -355,11 +499,12 @@ class PlanAndExecuteEngineTest {
         @Test
         fun should_completeSingleShot_when_patternMatchNavigateSucceeds() =
             runTest {
-                val navAction = LLMAction(
-                    actionType = ActionType.NAVIGATE,
-                    value = "home",
-                    confidence = 1.0,
-                )
+                val navAction =
+                    LLMAction(
+                        actionType = ActionType.NAVIGATE,
+                        value = "home",
+                        confidence = 1.0,
+                    )
 
                 coEvery { router.route(any(), any(), any()) } returns
                     NeuronResult.Success(

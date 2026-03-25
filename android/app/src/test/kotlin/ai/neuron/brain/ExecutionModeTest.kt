@@ -10,6 +10,7 @@ import ai.neuron.brain.model.LLMAction
 import ai.neuron.brain.model.LLMResponse
 import ai.neuron.brain.model.LLMTier
 import ai.neuron.brain.model.NeuronResult
+import ai.neuron.memory.AuditRepository
 import ai.neuron.memory.MemoryExtractor
 import io.mockk.coEvery
 import io.mockk.every
@@ -30,6 +31,8 @@ class ExecutionModeTest {
     private lateinit var uiProvider: PlanAndExecuteEngine.UIProvider
     private lateinit var actionDispatcher: PlanAndExecuteEngine.ActionDispatcher
     private lateinit var memoryExtractor: MemoryExtractor
+    private lateinit var confirmationGate: ConfirmationGate
+    private lateinit var auditRepository: AuditRepository
 
     private val normalTree =
         UITree(
@@ -47,6 +50,8 @@ class ExecutionModeTest {
         uiProvider = mockk()
         actionDispatcher = mockk()
         memoryExtractor = mockk(relaxed = true)
+        confirmationGate = mockk(relaxed = true)
+        auditRepository = mockk(relaxed = true)
 
         every { classifier.classify(any()) } returns
             IntentClassification(
@@ -57,7 +62,7 @@ class ExecutionModeTest {
         coEvery { uiProvider.getCurrentUITree() } returns normalTree
         coEvery { actionDispatcher.dispatch(any()) } returns true
 
-        engine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor)
+        engine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor, confirmationGate, auditRepository)
     }
 
     @Nested
@@ -204,7 +209,8 @@ class ExecutionModeTest {
 
         @Test
         fun should_defaultToAutonomous_when_notSet() {
-            val newEngine = PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor)
+            val newEngine =
+                PlanAndExecuteEngine(router, classifier, uiProvider, actionDispatcher, memoryExtractor, confirmationGate, auditRepository)
             assertEquals(ExecutionMode.AUTONOMOUS, newEngine.executionMode)
         }
     }
