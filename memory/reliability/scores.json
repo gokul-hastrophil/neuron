@@ -1,14 +1,14 @@
 {
-  "lastUpdated": "2026-03-25",
+  "lastUpdated": "2026-03-26T10:00:00Z",
   "metadata": {
     "description": "Component reliability tracking for Neuron project. Updated as features are implemented and tested.",
     "scoringFormula": "reliability = (test_pass_rate * 0.4) + (test_coverage * 0.3) + (no_crashes_score * 0.3)",
     "statuses": ["not_started", "in_progress", "implemented", "tested", "stable"],
     "updateFrequency": "After each component completes implementation or testing"
   },
-  "totalTests": 557,
+  "totalTests": 788,
   "totalPassRate": 100,
-  "kotlinTests": 510,
+  "kotlinTests": 741,
   "pythonTests": 47,
   "pythonTestsRunnable": 47,
   "pythonTestsBlocked": 0,
@@ -25,34 +25,34 @@
     "UITreeReader": {
       "status": "tested",
       "description": "L2 PERCEPTION layer - reads UI tree and generates JSON",
-      "testCount": 13,
+      "testCount": 29,
       "testPassRate": 100,
-      "reliability": 80,
-      "notes": "13 tests passing. Prunes invisible/non-interactive nodes, serializes JSON, handles depth limits, password field detection. Gaps: no stress tests for large trees, no concurrent traversal tests."
+      "reliability": 90,
+      "notes": "29 tests passing (incl UITreeTools). Prunes invisible/non-interactive nodes, serializes JSON, handles depth limits, password field detection, tool-callable access. Gaps: no stress tests for large trees, no concurrent traversal tests."
     },
     "ActionExecutor": {
       "status": "tested",
       "description": "L5 NERVE layer - executes NeuronAction objects (tap, type, swipe, scroll, global nav, launch, PressKey)",
-      "testCount": 19,
+      "testCount": 22,
       "testPassRate": 100,
-      "reliability": 80,
-      "notes": "19 tests passing. Tap by nodeId/coordinate, type text, swipe, scroll, long press, global actions. Gaps: no concurrency tests, no action confirmation flow tests."
+      "reliability": 85,
+      "notes": "22 tests passing. Tap by nodeId/coordinate, type text, swipe, scroll, long press, global actions. Gaps: executePressKey() and executeLaunchApp() lack dedicated tests, no concurrency tests."
     },
     "SensitivityGate": {
       "status": "tested",
-      "description": "L3 BRAIN layer - blocks sensitive actions (passwords, banking, editable fields with sensitive text)",
-      "testCount": 37,
+      "description": "L3 BRAIN layer - blocks sensitive actions + package-level sensitivity check + category labels for redaction",
+      "testCount": 81,
       "testPassRate": 100,
-      "reliability": 90,
-      "notes": "37 tests passing (excellent). Password fields (direct + nested), banking apps (Paytm/PhonePe/GPay/SBI/HDFC/ICICI), health apps, editable PIN/CVV/OTP, case-insensitive matching, mixed screens."
+      "reliability": 97,
+      "notes": "81 tests passing. Password fields, 60+ banking/crypto/health/password-manager packages, editable PIN/CVV/OTP, isSensitivePackage(), getSensitiveLabel() with 6 category labels. HEY-61/HEY-62 security hardening."
     },
     "LLMRouter": {
       "status": "tested",
       "description": "L3 BRAIN layer - routes between T0-T4 LLM tiers with fallback chain, injects ToolRegistry + workflow hints",
-      "testCount": 20,
+      "testCount": 35,
       "testPassRate": 100,
-      "reliability": 85,
-      "notes": "20 tests passing. Tier routing, sensitivity override to T4, password detection, fallback chain, timeout handling, pattern matching (open/launch/start/navigate), article stripping, and-rejection, already-open detection, home/back/recents/notifications. Gaps: no T0/T1 on-device model tests, no circuit breaker tests."
+      "reliability": 88,
+      "notes": "35 tests passing. Tier routing, sensitivity override to T4, password detection, fallback chain, timeout handling, pattern matching (open/launch/start/navigate), article stripping, and-rejection, already-open detection, home/back/recents/notifications. Gaps: buildSystemPrompt/buildUserMessage/getWorkflowHint not isolated-tested, no T0/T1 on-device model tests."
     },
     "IntentClassifier": {
       "status": "tested",
@@ -65,10 +65,10 @@
     "PlanAndExecuteEngine": {
       "status": "tested",
       "description": "L3 BRAIN layer - ReAct loop state machine for multi-step task execution with memory extraction",
-      "testCount": 20,
+      "testCount": 49,
       "testPassRate": 100,
-      "reliability": 85,
-      "notes": "20 tests passing. State transitions, max step limit, confidence threshold, single/multi-step, error handling, null action, repeated failure detection, CONFIRM action, supervised mode (approval + rejection), pattern-match single-shot completion, step logging, memory extraction, zero-confidence passthrough. Gaps: no timeout abort test (requires mocking System.currentTimeMillis), no replanning verification."
+      "reliability": 90,
+      "notes": "49 tests passing (incl ExecutionModeTest + ConfirmationGateTest). State transitions, max step limit, confidence threshold, single/multi-step, error handling, repeated failure detection, CONFIRM action, supervised/autonomous/plan-approve modes, ConfirmationGate enforcement, pattern-match single-shot completion, step logging, memory extraction, zero-confidence passthrough. Gaps: no timeout abort test, no replanning verification."
     },
     "WorkingMemory": {
       "status": "tested",
@@ -96,11 +96,11 @@
     },
     "AppResolver": {
       "status": "tested",
-      "description": "L3 BRAIN layer - 4-step app resolution: known apps → package validation → fuzzy label → intent-based",
-      "testCount": 25,
+      "description": "L3 BRAIN layer - 4-step app resolution with sensitive app warnings via SensitivityGate",
+      "testCount": 30,
       "testPassRate": 100,
-      "reliability": 85,
-      "notes": "25 tests passing. Intent-based fallback handles OEM package name differences (Honor, Xiaomi)."
+      "reliability": 88,
+      "notes": "30 tests. Known apps, package validation, fuzzy label, intent-based fallback, OEM handling. warnIfSensitive() logs SECURITY warnings for sensitive package resolution. HEY-62 follow-up."
     },
     "ActionMapper": {
       "status": "tested",
@@ -136,11 +136,11 @@
     },
     "ConfirmationGate": {
       "status": "tested",
-      "description": "L5 NERVE layer - blocks irreversible actions (send/delete/pay) until user confirms",
-      "testCount": 10,
+      "description": "L3 BRAIN layer - blocks irreversible actions (send/delete/pay) until user confirms, enforced in ALL modes",
+      "testCount": 15,
       "testPassRate": 100,
-      "reliability": 85,
-      "notes": "10 tests passing. Checks requiresConfirmation flag, sensitive flag, confidence < 0.7, dangerous keywords."
+      "reliability": 92,
+      "notes": "15 tests passing. Consolidated from brain/ (accessibility/ dup deleted). Checks requiresConfirmation flag, sensitive flag, confidence < 0.7, 13 irreversible keywords (send/pay/delete/remove/post/submit/transfer/purchase/confirm/publish/share/uninstall/buy). Wired into PlanAndExecuteEngine for ALL execution modes. 4 AUTONOMOUS-mode enforcement tests in PlanAndExecuteEngineTest."
     },
     "VoiceInputController": {
       "status": "tested",
@@ -288,11 +288,11 @@
     },
     "NeuronToolSchema": {
       "status": "tested",
-      "description": "L3 BRAIN layer - structured tool definitions for 7 action types, used by FunctionGemma and cloud LLMs",
-      "testCount": 10,
+      "description": "L3 BRAIN layer - structured tool definitions for 7 action types with JSON injection prevention",
+      "testCount": 17,
       "testPassRate": 100,
-      "reliability": 90,
-      "notes": "10 tests. Tool definitions, toActionType (case-insensitive), toPromptSnippet, toJson serialization."
+      "reliability": 92,
+      "notes": "17 tests. Tool definitions, toActionType (case-insensitive), toPromptSnippet, toJson serialization. JSON escaping: escapeJson() prevents structure injection via quotes/backslashes/newlines/control chars in toGeminiToolsJson() and toOpenAIToolsJson(). ToolRegistry validates tool names (regex) and description length."
     },
     "FunctionGemmaClient": {
       "status": "tested",
@@ -357,6 +357,46 @@
       "testPassRate": null,
       "reliability": null,
       "notes": "server/brain/planner.py does not exist yet (only .gitkeep). CRITICAL GAP: this is one of the 8 must-test components per QA spec."
+    },
+    "CrossAppContext": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - persists extracted data across app boundaries with prompt injection filtering and sensitive app redaction",
+      "testCount": 25,
+      "testPassRate": 100,
+      "reliability": 92,
+      "notes": "25 tests. Store/retrieve, max entries/truncation, app sequence, prompt injection filtering (PromptSanitizer), sensitive app redaction (SensitivityGate labels), extracted value exclusion from sensitive packages. HEY-61 security fixes."
+    },
+    "ScreenExtractor": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - extracts visible text, skips sensitive screens and packages in app sequence",
+      "testCount": 11,
+      "testPassRate": 100,
+      "reliability": 87,
+      "notes": "11 tests. Normal extraction, sensitive blocking, max limit, short text skip. Sensitive packages not recorded in appSequence. HEY-62 follow-up."
+    },
+    "IntentTemplates": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - parameterized intent builder with MIME type allowlist and URI scheme validation",
+      "testCount": 45,
+      "testPassRate": 100,
+      "reliability": 90,
+      "notes": "45 tests. JSON params, buildIntent, URI scheme allowlist, MIME type allowlist (text/image/video/audio/pdf/json, fallback to text/plain), package name validation (lowercase-only), buildFromValue. HEY-61 mimeType security fix."
+    },
+    "AppSwitchHandler": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - orchestration layer for cross-app transitions, skips recording sensitive packages",
+      "testCount": 13,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "13 tests. Detect, execute, retry, banking privacy, context management. Sensitive packages not recorded in appSequence. HEY-62 follow-up."
+    },
+    "MultiAppPlanDisplay": {
+      "status": "tested",
+      "description": "L3 BRAIN layer - generates user-facing summary of multi-app task plan before execution",
+      "testCount": 9,
+      "testPassRate": 100,
+      "reliability": 85,
+      "notes": "9 tests. Multi-app detection, single-app, dedup consecutive launches, reasoning/description fallback, data transfer detection, no-launch actions, formatForDisplay with/without data transfers. Part of HEY-30."
     }
   }
 }
