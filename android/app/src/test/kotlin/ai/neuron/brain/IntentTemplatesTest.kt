@@ -289,6 +289,85 @@ class IntentTemplatesTest {
     }
 
     @Nested
+    @DisplayName("MIME type validation (Fix 2)")
+    inner class MimeTypeValidation {
+        @Test
+        fun should_allowTextPlain_when_standardMimeType() {
+            assertEquals("text/plain", templates.sanitizeMimeType("text/plain"))
+        }
+
+        @Test
+        fun should_allowTextHtml_when_textSubtype() {
+            assertEquals("text/html", templates.sanitizeMimeType("text/html"))
+        }
+
+        @Test
+        fun should_allowImageJpeg_when_imageType() {
+            assertEquals("image/jpeg", templates.sanitizeMimeType("image/jpeg"))
+        }
+
+        @Test
+        fun should_allowImagePng_when_imageType() {
+            assertEquals("image/png", templates.sanitizeMimeType("image/png"))
+        }
+
+        @Test
+        fun should_allowVideoMp4_when_videoType() {
+            assertEquals("video/mp4", templates.sanitizeMimeType("video/mp4"))
+        }
+
+        @Test
+        fun should_allowAudioMpeg_when_audioType() {
+            assertEquals("audio/mpeg", templates.sanitizeMimeType("audio/mpeg"))
+        }
+
+        @Test
+        fun should_allowApplicationPdf_when_pdfType() {
+            assertEquals("application/pdf", templates.sanitizeMimeType("application/pdf"))
+        }
+
+        @Test
+        fun should_allowApplicationJson_when_jsonType() {
+            assertEquals("application/json", templates.sanitizeMimeType("application/json"))
+        }
+
+        @Test
+        fun should_fallbackToTextPlain_when_unknownMimeType() {
+            assertEquals("text/plain", templates.sanitizeMimeType("application/x-evil"))
+        }
+
+        @Test
+        fun should_fallbackToTextPlain_when_applicationOctetStream() {
+            assertEquals("text/plain", templates.sanitizeMimeType("application/octet-stream"))
+        }
+
+        @Test
+        fun should_fallbackToTextPlain_when_arbitraryMimeType() {
+            assertEquals("text/plain", templates.sanitizeMimeType("vnd.android.cursor.dir/contact"))
+        }
+
+        @Test
+        fun should_fallbackToTextPlain_when_nullMimeType() {
+            assertEquals("text/plain", templates.sanitizeMimeType(null))
+        }
+
+        @Test
+        fun should_handleCaseInsensitive_when_upperCaseMimeType() {
+            assertEquals("TEXT/PLAIN", templates.sanitizeMimeType("TEXT/PLAIN"))
+        }
+
+        @Test
+        fun should_handleWhitespace_when_mimeTypeHasSpaces() {
+            assertEquals(" text/plain ", templates.sanitizeMimeType(" text/plain "))
+        }
+
+        @Test
+        fun should_fallbackToTextPlain_when_emptyString() {
+            assertEquals("text/plain", templates.sanitizeMimeType(""))
+        }
+    }
+
+    @Nested
     @DisplayName("buildFromValue")
     inner class BuildFromValue {
         @Test

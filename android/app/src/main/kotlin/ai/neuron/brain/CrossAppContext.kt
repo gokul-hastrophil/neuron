@@ -1,5 +1,6 @@
 package ai.neuron.brain
 
+import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,12 +12,20 @@ import javax.inject.Singleton
  *
  * PRIVACY: Never stores data from sensitive apps (checked by SensitivityGate).
  * Cleared after every task completion.
+ *
+ * SECURITY: All extractedValues are checked for prompt injection before
+ * inclusion in LLM prompts. Sensitive app packages are redacted from
+ * the app sequence.
  */
 @Singleton
 class CrossAppContext
     @Inject
-    constructor() {
+    constructor(
+        private val promptSanitizer: PromptSanitizer,
+        private val sensitivityGate: SensitivityGate,
+    ) {
         companion object {
+            private const val TAG = "CrossAppContext"
             const val MAX_ENTRIES = 50
             const val MAX_VALUE_LENGTH = 2000
         }
@@ -55,15 +64,43 @@ class CrossAppContext
         /**
          * Build a context summary string for inclusion in LLM prompts.
          * Returns null if no cross-app data exists.
+         *
+         * Security: Values containing prompt injection patterns are excluded.
+         * Privacy: Sensitive app packages are replaced with generic labels,
+         * and extracted values from sensitive packages are excluded entirely.
          */
         fun buildPromptContext(): String? {
             if (extractedValues.isEmpty()) return null
 
             val sb = StringBuilder()
             sb.appendLine("[Cross-App Context]")
-            sb.appendLine("Apps visited: ${appSequence.joinToString(" → ")}")
+
+            // Fix 3: Redact sensitive packages in app sequence
+            val redactedSequence =
+                appSequence.map { pkg ->
+                    sensitivityGate.getSensitiveLabel(pkg) ?: pkg
+                }
+            sb.appendLine("Apps visited: ${redactedSequence.joinToString(" → ")}")
+
+            // Collect sensitive package prefixes for value filtering
+            val sensitivePackagePrefixes =
+                appSequence.filter { sensitivityGate.isSensitivePackage(it) }
+                    .map { "$it:" }
+
             sb.appendLine("Extracted data:")
             extractedValues.forEach { (key, value) ->
+                // Fix 3: Exclude extracted values from sensitive packages entirely
+                if (sensitivePackagePrefixes.any { prefix -> key.startsWith(prefix) }) {
+                    Log.d(TAG, "Excluded value from sensitive package: key=$key")
+                    return@forEach
+                }
+
+                // Fix 1: Check for prompt injection before embedding
+                if (promptSanitizer.containsInjection(value)) {
+                    Log.w(TAG, "Prompt injection detected in extracted value: key=$key")
+                    return@forEach
+                }
+
                 sb.appendLine("  $key = $value")
             }
             return sb.toString()

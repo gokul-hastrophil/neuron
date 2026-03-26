@@ -27,10 +27,13 @@ class AppSwitchHandlerTest {
     private lateinit var auditRepository: AuditRepository
     private val mockContext: Context = mockk(relaxed = true)
 
+    private lateinit var promptSanitizer: PromptSanitizer
+
     @BeforeEach
     fun setup() {
         sensitivityGate = SensitivityGate()
-        crossAppContext = CrossAppContext()
+        promptSanitizer = PromptSanitizer()
+        crossAppContext = CrossAppContext(promptSanitizer, sensitivityGate)
         screenExtractor = ScreenExtractor(sensitivityGate)
         intentTemplates = IntentTemplates(mockContext)
         auditRepository = mockk(relaxed = true)

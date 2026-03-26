@@ -14,11 +14,14 @@ class ScreenExtractorTest {
     private lateinit var sensitivityGate: SensitivityGate
     private lateinit var context: CrossAppContext
 
+    private lateinit var promptSanitizer: PromptSanitizer
+
     @BeforeEach
     fun setup() {
         sensitivityGate = SensitivityGate()
+        promptSanitizer = PromptSanitizer()
         extractor = ScreenExtractor(sensitivityGate)
-        context = CrossAppContext()
+        context = CrossAppContext(promptSanitizer, sensitivityGate)
     }
 
     @Nested

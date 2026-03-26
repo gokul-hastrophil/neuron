@@ -2,7 +2,9 @@ package ai.neuron.brain
 
 import ai.neuron.accessibility.model.UINode
 import ai.neuron.accessibility.model.UITree
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -628,6 +630,74 @@ class SensitivityGateTest {
                         ),
                 )
             assertFalse(gate.isSensitive(tree))
+        }
+    }
+
+    @Nested
+    @DisplayName("Package-level sensitivity check")
+    inner class PackageLevelCheck {
+        @Test
+        fun should_returnTrue_when_bankingPackage() {
+            assertTrue(gate.isSensitivePackage("com.phonepe.app"))
+        }
+
+        @Test
+        fun should_returnTrue_when_cryptoPackage() {
+            assertTrue(gate.isSensitivePackage("io.metamask"))
+        }
+
+        @Test
+        fun should_returnTrue_when_healthPackage() {
+            assertTrue(gate.isSensitivePackage("com.google.android.apps.healthdata"))
+        }
+
+        @Test
+        fun should_returnFalse_when_normalPackage() {
+            assertFalse(gate.isSensitivePackage("com.whatsapp"))
+        }
+
+        @Test
+        fun should_returnFalse_when_emptyString() {
+            assertFalse(gate.isSensitivePackage(""))
+        }
+    }
+
+    @Nested
+    @DisplayName("Sensitive label lookup")
+    inner class SensitiveLabelLookup {
+        @Test
+        fun should_returnBankingLabel_when_paytm() {
+            assertEquals("[banking app]", gate.getSensitiveLabel("net.one97.paytm"))
+        }
+
+        @Test
+        fun should_returnCryptoLabel_when_metamask() {
+            assertEquals("[crypto wallet]", gate.getSensitiveLabel("io.metamask"))
+        }
+
+        @Test
+        fun should_returnInvestmentLabel_when_zerodha() {
+            assertEquals("[investment app]", gate.getSensitiveLabel("com.zerodha.kite"))
+        }
+
+        @Test
+        fun should_returnPasswordManagerLabel_when_bitwarden() {
+            assertEquals("[password manager]", gate.getSensitiveLabel("com.x8bit.bitwarden"))
+        }
+
+        @Test
+        fun should_returnAuthenticatorLabel_when_googleAuth() {
+            assertEquals("[authenticator app]", gate.getSensitiveLabel("com.google.android.apps.authenticator2"))
+        }
+
+        @Test
+        fun should_returnHealthLabel_when_googleHealth() {
+            assertEquals("[health app]", gate.getSensitiveLabel("com.google.android.apps.healthdata"))
+        }
+
+        @Test
+        fun should_returnNull_when_nonSensitivePackage() {
+            assertNull(gate.getSensitiveLabel("com.whatsapp"))
         }
     }
 

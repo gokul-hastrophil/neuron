@@ -41,6 +41,22 @@ class IntentTemplates
             private val ALLOWED_VIEW_SCHEMES = setOf("https", "http", "geo", "market")
             private val ALLOWED_SENDTO_SCHEMES = setOf("sms", "smsto", "mailto")
             private val ALLOWED_STREAM_SCHEMES = setOf("content")
+
+            /**
+             * Allowlisted MIME type prefixes for ACTION_SEND intents.
+             * Prevents LLM-supplied MIME types from being used to trigger
+             * unintended content handlers via intent resolution.
+             */
+            private val ALLOWED_MIME_PREFIXES =
+                listOf(
+                    "text/",
+                    "image/",
+                    "video/",
+                    "audio/",
+                    "application/pdf",
+                    "application/json",
+                )
+            private const val FALLBACK_MIME_TYPE = "text/plain"
         }
 
         /**
@@ -128,7 +144,7 @@ class IntentTemplates
 
         private fun buildSendIntent(params: IntentParams): Intent {
             return Intent(Intent.ACTION_SEND).apply {
-                type = params.mimeType ?: "text/plain"
+                type = sanitizeMimeType(params.mimeType)
                 params.text?.let { putExtra(Intent.EXTRA_TEXT, it) }
                 params.subject?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
                 params.extraStream?.let { streamUri ->
@@ -174,6 +190,20 @@ class IntentTemplates
             val colonIndex = uriString.indexOf(':')
             if (colonIndex <= 0) return null
             return uriString.substring(0, colonIndex)
+        }
+
+        /**
+         * Validate MIME type against the allowlist.
+         * Returns the MIME type if allowed, otherwise falls back to text/plain.
+         */
+        internal fun sanitizeMimeType(mimeType: String?): String {
+            if (mimeType == null) return FALLBACK_MIME_TYPE
+            val normalized = mimeType.trim().lowercase()
+            if (ALLOWED_MIME_PREFIXES.any { normalized.startsWith(it) }) {
+                return mimeType
+            }
+            Log.w(TAG, "MIME type not in allowlist, falling back to text/plain: $mimeType")
+            return FALLBACK_MIME_TYPE
         }
 
         private fun isValidPackageName(pkg: String): Boolean {
