@@ -7,10 +7,8 @@ import ai.neuron.accessibility.model.UITree
 import ai.neuron.brain.AppResolver
 import ai.neuron.brain.PlanAndExecuteEngine
 import ai.neuron.brain.StructuredToolCallParser
-import ai.neuron.brain.client.GeminiFlashClient
-import ai.neuron.brain.client.NvidiaQwenClient
-import ai.neuron.brain.client.OllamaCloudClient
-import ai.neuron.brain.client.OpenRouterClient
+import ai.neuron.brain.client.LlmProxyClient
+import ai.neuron.brain.client.SecureKeyStore
 import ai.neuron.brain.model.ActionType
 import ai.neuron.brain.model.LLMAction
 import ai.neuron.nerve.DualPathExecutor
@@ -37,7 +35,7 @@ object BrainModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(secureKeyStore: SecureKeyStore): OkHttpClient {
         val builder =
             OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
@@ -47,7 +45,7 @@ object BrainModule {
         if (BuildConfig.DEBUG) {
             val loggingInterceptor =
                 HttpLoggingInterceptor { message ->
-                    val sanitized = sanitizeApiKeys(message)
+                    val sanitized = sanitizeSecrets(message, secureKeyStore)
                     android.util.Log.d("NeuronHttp", sanitized)
                 }.apply {
                     // SECURITY: Never use Level.BODY — it leaks full UITree JSON,
@@ -63,25 +61,23 @@ object BrainModule {
 
     @Provides
     @Singleton
-    fun provideGeminiFlashClient(
+    fun provideSecureKeyStore(
+        @ApplicationContext context: Context,
+    ): SecureKeyStore = SecureKeyStore(context)
+
+    @Provides
+    @Singleton
+    fun provideLlmProxyClient(
         okHttpClient: OkHttpClient,
         toolCallParser: StructuredToolCallParser,
-    ): GeminiFlashClient = GeminiFlashClient(okHttpClient, toolCallParser)
-
-    @Provides
-    @Singleton
-    fun provideNvidiaQwenClient(okHttpClient: OkHttpClient): NvidiaQwenClient = NvidiaQwenClient(okHttpClient)
-
-    @Provides
-    @Singleton
-    fun provideOpenRouterClient(okHttpClient: OkHttpClient): OpenRouterClient = OpenRouterClient(okHttpClient)
-
-    @Provides
-    @Singleton
-    fun provideOllamaCloudClient(
-        okHttpClient: OkHttpClient,
-        toolCallParser: StructuredToolCallParser,
-    ): OllamaCloudClient = OllamaCloudClient(okHttpClient, toolCallParser)
+        secureKeyStore: SecureKeyStore,
+    ): LlmProxyClient =
+        LlmProxyClient(
+            okHttpClient = okHttpClient,
+            toolCallParser = toolCallParser,
+            serverUrl = secureKeyStore.serverUrl,
+            deviceTokenProvider = { secureKeyStore.deviceToken },
+        )
 
     @Provides
     @Singleton
@@ -155,27 +151,22 @@ object BrainModule {
     }
 
     /**
-     * Sanitize ALL configured API keys from log messages.
-     * Covers every BuildConfig key field to prevent accidental leakage.
+     * Sanitize device token and Picovoice key from log messages.
+     * Cloud API keys no longer exist in the app — only runtime secrets remain.
      */
-    private fun sanitizeApiKeys(message: String): String {
+    private fun sanitizeSecrets(
+        message: String,
+        secureKeyStore: SecureKeyStore,
+    ): String {
         var sanitized = message
-        for ((key, label) in API_KEYS_TO_SANITIZE) {
-            if (key.isNotEmpty()) {
-                sanitized = sanitized.replace(key, "***$label***")
-            }
+        val token = secureKeyStore.deviceToken
+        if (token.isNotEmpty()) {
+            sanitized = sanitized.replace(token, "***DEVICE_TOKEN***")
+        }
+        val picoKey = secureKeyStore.picovoiceAccessKey
+        if (picoKey.isNotEmpty()) {
+            sanitized = sanitized.replace(picoKey, "***PICOVOICE_KEY***")
         }
         return sanitized
-    }
-
-    private val API_KEYS_TO_SANITIZE by lazy {
-        listOf(
-            BuildConfig.ANTHROPIC_API_KEY to "ANTHROPIC_KEY",
-            BuildConfig.GEMINI_API_KEY to "GEMINI_KEY",
-            BuildConfig.NVIDIA_API_KEY to "NVIDIA_KEY",
-            BuildConfig.OPENROUTER_API_KEY to "OPENROUTER_KEY",
-            BuildConfig.OLLAMA_API_KEY to "OLLAMA_KEY",
-            BuildConfig.PICOVOICE_ACCESS_KEY to "PICOVOICE_KEY",
-        )
     }
 }

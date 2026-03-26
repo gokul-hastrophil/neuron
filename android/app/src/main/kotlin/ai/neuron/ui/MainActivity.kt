@@ -1,7 +1,8 @@
 package ai.neuron.ui
 
-import ai.neuron.BuildConfig
 import ai.neuron.brain.ExecutionMode
+import ai.neuron.brain.client.LlmProxyClient
+import ai.neuron.brain.client.SecureKeyStore
 import ai.neuron.memory.AuditRepository
 import ai.neuron.ui.audit.AuditLogScreen
 import ai.neuron.ui.onboarding.OnboardingScreen
@@ -34,6 +35,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var auditRepository: AuditRepository
 
+    @Inject
+    lateinit var secureKeyStore: SecureKeyStore
+
+    @Inject
+    lateinit var llmProxyClient: LlmProxyClient
+
     private var isAccessibilityEnabled = mutableStateOf(false)
     private var isMicrophoneGranted = mutableStateOf(false)
 
@@ -48,7 +55,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val prefs = getSharedPreferences("neuron_prefs", Context.MODE_PRIVATE)
-        seedBuildConfigKeys(prefs)
+        migrateKeysToSecureStore(prefs)
         val onboardingComplete = prefs.getBoolean("onboarding_complete", false)
 
         setContent {
@@ -126,32 +133,40 @@ class MainActivity : ComponentActivity() {
         return enabledServices.contains("ai.neuron")
     }
 
-    private fun seedBuildConfigKeys(prefs: android.content.SharedPreferences) {
+    /**
+     * One-time migration: moves any existing plaintext keys from SharedPreferences
+     * into EncryptedSharedPreferences, then deletes the plaintext copies.
+     */
+    private fun migrateKeysToSecureStore(prefs: android.content.SharedPreferences) {
         val editor = prefs.edit()
 
-        fun seedIfEmpty(
+        fun migrateKey(
             prefKey: String,
-            buildConfigValue: String,
+            setter: (String) -> Unit,
+            getter: () -> String,
         ) {
-            val current = prefs.getString(prefKey, "") ?: ""
-            if (current.isEmpty() && buildConfigValue.isNotEmpty()) {
-                editor.putString(prefKey, buildConfigValue)
+            val plainValue = prefs.getString(prefKey, "") ?: ""
+            if (plainValue.isNotEmpty() && getter().isEmpty()) {
+                setter(plainValue)
+                editor.remove(prefKey)
             }
         }
-        seedIfEmpty("gemini_api_key", BuildConfig.GEMINI_API_KEY)
-        seedIfEmpty("openrouter_api_key", BuildConfig.OPENROUTER_API_KEY)
-        seedIfEmpty("ollama_api_key", BuildConfig.OLLAMA_API_KEY)
-        seedIfEmpty("picovoice_access_key", BuildConfig.PICOVOICE_ACCESS_KEY)
+
+        migrateKey("picovoice_access_key", { secureKeyStore.picovoiceAccessKey = it }, { secureKeyStore.picovoiceAccessKey })
+
+        // Remove stale cloud API key entries that are no longer used
+        editor.remove("gemini_api_key")
+        editor.remove("openrouter_api_key")
+        editor.remove("ollama_api_key")
+
         editor.apply()
     }
 
     private fun loadSettings(prefs: android.content.SharedPreferences): NeuronSettings {
         return NeuronSettings(
-            geminiApiKey = prefs.getString("gemini_api_key", "") ?: "",
-            ollamaEndpoint = prefs.getString("ollama_endpoint", "") ?: "",
-            ollamaApiKey = prefs.getString("ollama_api_key", "") ?: "",
-            openRouterApiKey = prefs.getString("openrouter_api_key", "") ?: "",
-            picovoiceAccessKey = prefs.getString("picovoice_access_key", "") ?: "",
+            serverUrl = secureKeyStore.serverUrl,
+            deviceToken = secureKeyStore.deviceToken,
+            picovoiceAccessKey = secureKeyStore.picovoiceAccessKey,
             wakeWordKeyword = prefs.getString("wake_word_keyword", "JARVIS") ?: "JARVIS",
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", true),
             cloudEnabled = prefs.getBoolean("cloud_enabled", true),
@@ -168,12 +183,16 @@ class MainActivity : ComponentActivity() {
         prefs: android.content.SharedPreferences,
         settings: NeuronSettings,
     ) {
+        // Secure keys go to EncryptedSharedPreferences
+        secureKeyStore.serverUrl = settings.serverUrl
+        secureKeyStore.deviceToken = settings.deviceToken
+        secureKeyStore.picovoiceAccessKey = settings.picovoiceAccessKey
+
+        // Update proxy client with new server URL
+        llmProxyClient.updateServerUrl(settings.serverUrl)
+
+        // Non-secret settings stay in regular prefs
         prefs.edit()
-            .putString("gemini_api_key", settings.geminiApiKey)
-            .putString("ollama_endpoint", settings.ollamaEndpoint)
-            .putString("ollama_api_key", settings.ollamaApiKey)
-            .putString("openrouter_api_key", settings.openRouterApiKey)
-            .putString("picovoice_access_key", settings.picovoiceAccessKey)
             .putString("wake_word_keyword", settings.wakeWordKeyword)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
             .putBoolean("cloud_enabled", settings.cloudEnabled)

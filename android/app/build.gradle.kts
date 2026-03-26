@@ -35,12 +35,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "ANTHROPIC_API_KEY", "\"${apiKey("ANTHROPIC_API_KEY")}\"")
-        buildConfigField("String", "GEMINI_API_KEY", "\"${apiKey("GEMINI_API_KEY")}\"")
-        buildConfigField("String", "NVIDIA_API_KEY", "\"${apiKey("NVIDIA_API_KEY")}\"")
-        buildConfigField("String", "OPENROUTER_API_KEY", "\"${apiKey("OPENROUTER_API_KEY")}\"")
-        buildConfigField("String", "OLLAMA_API_KEY", "\"${apiKey("OLLAMA_API_KEY")}\"")
-        buildConfigField("String", "PICOVOICE_ACCESS_KEY", "\"${apiKey("PICOVOICE_ACCESS_KEY")}\"")
+        // SECURITY: Cloud API keys removed from BuildConfig (HEY-68).
+        // All cloud LLM calls route through the server proxy.
+        // Picovoice key is provisioned via EncryptedSharedPreferences at runtime.
     }
 
     signingConfigs {
@@ -158,6 +155,12 @@ dependencies {
     // Serialization
     implementation(libs.serialization.json)
 
+    // Encrypted storage (Picovoice key, device token)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // SSE (Server-Sent Events) for streaming LLM proxy responses
+    implementation("com.squareup.okhttp3:okhttp-sse:${libs.versions.okhttp.get()}")
+
     // Wake word detection
     implementation("ai.picovoice:porcupine-android:3.0.3")
 
@@ -167,4 +170,5 @@ dependencies {
     testImplementation(libs.junit5.params)
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
+    testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.get()}")
 }

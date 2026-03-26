@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 /**
  * Tests for OllamaCloud/OpenAI structured tool calling integration.
- * Tests the parsing logic used by OllamaCloudClient without needing Android runtime.
+ * Tests the parsing logic used by LlmProxyClient without needing Android runtime.
  */
 class OllamaToolCallingTest {
     private lateinit var parser: StructuredToolCallParser

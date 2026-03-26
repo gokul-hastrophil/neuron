@@ -34,10 +34,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 data class NeuronSettings(
-    val geminiApiKey: String = "",
-    val ollamaEndpoint: String = "",
-    val ollamaApiKey: String = "",
-    val openRouterApiKey: String = "",
+    val serverUrl: String = "http://localhost:8384",
+    val deviceToken: String = "",
     val picovoiceAccessKey: String = "",
     val wakeWordKeyword: String = "JARVIS",
     val wakeWordEnabled: Boolean = true,
@@ -81,33 +79,23 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- API Keys Section ---
-        SectionHeader("API Keys")
-
-        ApiKeyField(
-            label = "Gemini API Key",
-            value = settings.geminiApiKey,
-            onValueChange = { onSettingsChanged(settings.copy(geminiApiKey = it)) },
-        )
-
-        ApiKeyField(
-            label = "OpenRouter API Key",
-            value = settings.openRouterApiKey,
-            onValueChange = { onSettingsChanged(settings.copy(openRouterApiKey = it)) },
-        )
-
-        ApiKeyField(
-            label = "Ollama API Key",
-            value = settings.ollamaApiKey,
-            onValueChange = { onSettingsChanged(settings.copy(ollamaApiKey = it)) },
-        )
+        // --- Server Connection Section ---
+        SectionHeader("Server Connection")
 
         OutlinedTextField(
-            value = settings.ollamaEndpoint,
-            onValueChange = { onSettingsChanged(settings.copy(ollamaEndpoint = it)) },
-            label = { Text("Ollama Endpoint") },
+            value = settings.serverUrl,
+            onValueChange = { onSettingsChanged(settings.copy(serverUrl = it)) },
+            label = { Text("Server URL") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ApiKeyField(
+            label = "Device Token",
+            value = settings.deviceToken,
+            onValueChange = { onSettingsChanged(settings.copy(deviceToken = it)) },
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -119,7 +107,7 @@ fun SettingsScreen(
 
         SettingsToggle(
             title = "Cloud LLM",
-            subtitle = "Allow sending non-sensitive data to cloud LLMs (Gemini, OpenRouter)",
+            subtitle = "Allow sending non-sensitive data to server LLM proxy",
             checked = settings.cloudEnabled,
             onCheckedChange = { onSettingsChanged(settings.copy(cloudEnabled = it)) },
         )

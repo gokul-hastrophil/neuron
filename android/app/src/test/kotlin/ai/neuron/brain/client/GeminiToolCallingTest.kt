@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 /**
  * Tests for Gemini structured tool calling integration.
- * Tests the parsing logic used by GeminiFlashClient without needing Android runtime.
+ * Tests the parsing logic used by LlmProxyClient without needing Android runtime.
  */
 class GeminiToolCallingTest {
     private lateinit var parser: StructuredToolCallParser
