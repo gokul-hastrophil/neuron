@@ -68,8 +68,12 @@ object CharacterSystemPrompt {
     /**
      * Build a compact character prompt for T4 (on-device) models.
      * Minimal context to fit small model windows: just name and style.
+     *
+     * SECURITY: Name is sanitized even for on-device models to prevent
+     * prompt injection into the on-device LLM.
      */
     fun buildCompact(profile: PersonalityProfile): String {
-        return "You are ${profile.name}. Style: ${profile.speakingStyle.systemPromptDescription}."
+        val safeName = profile.name.take(50).replace(Regex("""[\n\r]"""), " ")
+        return "You are $safeName. Style: ${profile.speakingStyle.systemPromptDescription}."
     }
 }
