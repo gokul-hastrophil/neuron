@@ -15,6 +15,9 @@ import javax.inject.Singleton
  * Parameterized intent builder for rich app launching beyond bare package launch.
  * Supports ACTION_SEND, ACTION_SENDTO, ACTION_VIEW with structured extras
  * from LLMAction.value JSON.
+ *
+ * SECURITY: All URIs are validated against an allowlist of safe schemes
+ * before being used in intents to prevent content:// and file:// injection.
  */
 @Singleton
 class IntentTemplates
@@ -30,6 +33,14 @@ class IntentTemplates
                     ignoreUnknownKeys = true
                     encodeDefaults = false
                 }
+
+            /**
+             * Allowlisted URI schemes for ACTION_VIEW and ACTION_SENDTO intents.
+             * content:// and file:// are blocked to prevent data exfiltration.
+             */
+            private val ALLOWED_VIEW_SCHEMES = setOf("https", "http", "geo", "market")
+            private val ALLOWED_SENDTO_SCHEMES = setOf("sms", "smsto", "mailto")
+            private val ALLOWED_STREAM_SCHEMES = setOf("content")
         }
 
         /**
@@ -63,7 +74,7 @@ class IntentTemplates
 
         /**
          * Build an Intent from structured parameters. Returns null if intent_type is
-         * not recognized or params are invalid.
+         * not recognized, params are invalid, or URI scheme is not allowed.
          */
         fun buildIntent(params: IntentParams): Intent? {
             val intent =
@@ -79,7 +90,13 @@ class IntentTemplates
 
             // Apply target package constraint if specified
             intent?.let {
-                params.packageName?.let { pkg -> it.setPackage(pkg) }
+                params.packageName?.let { pkg ->
+                    if (!isValidPackageName(pkg)) {
+                        Log.w(TAG, "Invalid package name rejected: $pkg")
+                        return null
+                    }
+                    it.setPackage(pkg)
+                }
                 it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
@@ -114,14 +131,22 @@ class IntentTemplates
                 type = params.mimeType ?: "text/plain"
                 params.text?.let { putExtra(Intent.EXTRA_TEXT, it) }
                 params.subject?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
-                params.extraStream?.let {
-                    putExtra(Intent.EXTRA_STREAM, Uri.parse(it))
+                params.extraStream?.let { streamUri ->
+                    if (isAllowedScheme(streamUri, ALLOWED_STREAM_SCHEMES)) {
+                        putExtra(Intent.EXTRA_STREAM, Uri.parse(streamUri))
+                    } else {
+                        Log.w(TAG, "Blocked EXTRA_STREAM with disallowed scheme: $streamUri")
+                    }
                 }
             }
         }
 
         private fun buildSendToIntent(params: IntentParams): Intent? {
             val uri = params.uri ?: return null
+            if (!isAllowedScheme(uri, ALLOWED_SENDTO_SCHEMES)) {
+                Log.w(TAG, "Blocked ACTION_SENDTO with disallowed URI scheme: ${getScheme(uri)}")
+                return null
+            }
             return Intent(Intent.ACTION_SENDTO, Uri.parse(uri)).apply {
                 params.text?.let { putExtra("sms_body", it) }
                 params.subject?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
@@ -130,6 +155,29 @@ class IntentTemplates
 
         private fun buildViewIntent(params: IntentParams): Intent? {
             val uri = params.uri ?: return null
+            if (!isAllowedScheme(uri, ALLOWED_VIEW_SCHEMES)) {
+                Log.w(TAG, "Blocked ACTION_VIEW with disallowed URI scheme: ${getScheme(uri)}")
+                return null
+            }
             return Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+        }
+
+        private fun isAllowedScheme(
+            uriString: String,
+            allowedSchemes: Set<String>,
+        ): Boolean {
+            val scheme = getScheme(uriString) ?: return false
+            return scheme.lowercase() in allowedSchemes
+        }
+
+        private fun getScheme(uriString: String): String? {
+            val colonIndex = uriString.indexOf(':')
+            if (colonIndex <= 0) return null
+            return uriString.substring(0, colonIndex)
+        }
+
+        private fun isValidPackageName(pkg: String): Boolean {
+            // Package names: lowercase letters, digits, dots, underscores; at least one dot
+            return pkg.matches(Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$"))
         }
     }

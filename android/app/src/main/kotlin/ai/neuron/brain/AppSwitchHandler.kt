@@ -2,6 +2,7 @@ package ai.neuron.brain
 
 import ai.neuron.accessibility.model.UITree
 import ai.neuron.brain.model.LLMAction
+import ai.neuron.memory.AuditRepository
 import android.util.Log
 import kotlinx.coroutines.delay
 import javax.inject.Inject
@@ -17,6 +18,7 @@ import javax.inject.Singleton
  * - Wait for app launch verification (package in UI tree, 3s timeout)
  * - Inject CrossAppContext into next LLM prompt
  * - Handle failures: app not installed → error, crash → retry once, permission denied → abort
+ * - SECURITY: Log all cross-app transitions to audit log
  */
 @Singleton
 class AppSwitchHandler
@@ -25,6 +27,7 @@ class AppSwitchHandler
         private val screenExtractor: ScreenExtractor,
         private val crossAppContext: CrossAppContext,
         private val intentTemplates: IntentTemplates,
+        private val auditRepository: AuditRepository,
     ) {
         companion object {
             private const val TAG = "AppSwitchHandler"
@@ -92,9 +95,12 @@ class AppSwitchHandler
             launchAction: suspend () -> Boolean,
             getUITree: suspend () -> UITree,
         ): SwitchResult {
+            val sourcePackage = currentUITree.packageName
+            val startTime = System.currentTimeMillis()
+
             // Step 1: Extract data from current screen before leaving
             val extracted = screenExtractor.extractAndStore(currentUITree, crossAppContext)
-            Log.d(TAG, "Extracted $extracted values from ${currentUITree.packageName} before switch")
+            Log.d(TAG, "Extracted $extracted values from $sourcePackage before switch")
 
             // Step 2: Launch target app (with retry)
             var launched = false
@@ -112,19 +118,49 @@ class AppSwitchHandler
             }
 
             if (!launched) {
+                val reason = "Failed to launch app after $attempts attempts"
                 Log.e(TAG, "Failed to launch $targetPackage after $attempts attempts")
-                return SwitchResult.Failed(targetPackage, "Failed to launch app after $attempts attempts")
+                auditRepository.logAction(
+                    actionType = "APP_SWITCH",
+                    targetPackage = targetPackage,
+                    command = "switch from $sourcePackage to $targetPackage",
+                    success = false,
+                    reasoning = reason,
+                    durationMs = System.currentTimeMillis() - startTime,
+                )
+                return SwitchResult.Failed(targetPackage, reason)
             }
 
             // Step 3: Wait for target app to appear in foreground
             val verified = waitForApp(targetPackage, getUITree)
+            val durationMs = System.currentTimeMillis() - startTime
+
             if (!verified) {
+                val reason = "App launched but did not appear in foreground within ${APP_LAUNCH_TIMEOUT_MS}ms"
                 Log.w(TAG, "Target app $targetPackage did not appear in foreground within timeout")
-                return SwitchResult.Failed(targetPackage, "App launched but did not appear in foreground within ${APP_LAUNCH_TIMEOUT_MS}ms")
+                auditRepository.logAction(
+                    actionType = "APP_SWITCH",
+                    targetPackage = targetPackage,
+                    command = "switch from $sourcePackage to $targetPackage",
+                    success = false,
+                    reasoning = reason,
+                    durationMs = durationMs,
+                )
+                return SwitchResult.Failed(targetPackage, reason)
             }
 
             crossAppContext.recordAppSwitch(targetPackage)
             Log.i(TAG, "Successfully switched to $targetPackage")
+
+            auditRepository.logAction(
+                actionType = "APP_SWITCH",
+                targetPackage = targetPackage,
+                command = "switch from $sourcePackage to $targetPackage",
+                success = true,
+                reasoning = "Extracted $extracted values, switch verified in ${durationMs}ms",
+                durationMs = durationMs,
+            )
+
             return SwitchResult.Success(targetPackage)
         }
 

@@ -113,7 +113,7 @@ class IntentTemplatesTest {
             val params =
                 IntentTemplates.IntentParams(
                     intentType = "ACTION_VIEW",
-                    uri = "geo:37.7749,-122.4194",
+                    uri = "https://maps.google.com",
                 )
             assertNotNull(templates.buildIntent(params))
         }
@@ -148,6 +148,147 @@ class IntentTemplatesTest {
     }
 
     @Nested
+    @DisplayName("URI scheme validation — intent injection prevention")
+    inner class UriSchemeValidation {
+        @Test
+        fun should_blockContentUri_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "content://com.android.contacts/contacts",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_blockFileUri_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "file:///data/data/com.app/databases/db",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_blockJavascriptUri_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "javascript:alert(document.cookie)",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_allowHttpsUri_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "https://example.com",
+                )
+            assertNotNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_allowGeoUri_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "geo:37.7749,-122.4194",
+                )
+            assertNotNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_allowMarketUri_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "market://details?id=com.app",
+                )
+            assertNotNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_blockContentUri_when_actionSendTo() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_SENDTO",
+                    uri = "content://sms/inbox",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_allowSmsUri_when_actionSendTo() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_SENDTO",
+                    uri = "sms:+1234567890",
+                )
+            assertNotNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_allowMailtoUri_when_actionSendTo() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_SENDTO",
+                    uri = "mailto:user@example.com",
+                )
+            assertNotNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_blockSchemeWithNoColon_when_actionView() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_VIEW",
+                    uri = "notavaliduri",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+    }
+
+    @Nested
+    @DisplayName("Package name validation")
+    inner class PackageNameValidation {
+        @Test
+        fun should_rejectMalformedPackage_when_noDotsPresent() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_SEND",
+                    packageName = "malicious",
+                    text = "test",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_rejectPackage_when_containsShellChars() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_SEND",
+                    packageName = "com.app; rm -rf /",
+                    text = "test",
+                )
+            assertNull(templates.buildIntent(params))
+        }
+
+        @Test
+        fun should_acceptValidPackage_when_wellFormed() {
+            val params =
+                IntentTemplates.IntentParams(
+                    intentType = "ACTION_SEND",
+                    packageName = "com.whatsapp",
+                    text = "test",
+                )
+            assertNotNull(templates.buildIntent(params))
+        }
+    }
+
+    @Nested
     @DisplayName("buildFromValue")
     inner class BuildFromValue {
         @Test
@@ -164,6 +305,12 @@ class IntentTemplatesTest {
         @Test
         fun should_returnNull_when_null() {
             assertNull(templates.buildFromValue(null))
+        }
+
+        @Test
+        fun should_returnNull_when_maliciousContentUri() {
+            val json = """{"intent_type":"ACTION_VIEW","uri":"content://com.android.settings/database/secure"}"""
+            assertNull(templates.buildFromValue(json))
         }
     }
 }

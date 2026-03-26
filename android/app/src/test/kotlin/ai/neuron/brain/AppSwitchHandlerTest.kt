@@ -4,8 +4,10 @@ import ai.neuron.accessibility.model.UINode
 import ai.neuron.accessibility.model.UITree
 import ai.neuron.brain.model.ActionType
 import ai.neuron.brain.model.LLMAction
+import ai.neuron.memory.AuditRepository
 import android.content.Context
 import android.content.pm.PackageManager
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -22,6 +24,7 @@ class AppSwitchHandlerTest {
     private lateinit var screenExtractor: ScreenExtractor
     private lateinit var sensitivityGate: SensitivityGate
     private lateinit var intentTemplates: IntentTemplates
+    private lateinit var auditRepository: AuditRepository
     private val mockContext: Context = mockk(relaxed = true)
 
     @BeforeEach
@@ -30,7 +33,8 @@ class AppSwitchHandlerTest {
         crossAppContext = CrossAppContext()
         screenExtractor = ScreenExtractor(sensitivityGate)
         intentTemplates = IntentTemplates(mockContext)
-        handler = AppSwitchHandler(screenExtractor, crossAppContext, intentTemplates)
+        auditRepository = mockk(relaxed = true)
+        handler = AppSwitchHandler(screenExtractor, crossAppContext, intentTemplates, auditRepository)
     }
 
     @Nested
@@ -193,6 +197,59 @@ class AppSwitchHandlerTest {
 
                 // No extracted values from banking app
                 assertTrue(crossAppContext.getAllValues().isEmpty())
+            }
+    }
+
+    @Nested
+    @DisplayName("Audit logging")
+    inner class AuditLogging {
+        @Test
+        fun should_logSuccessfulSwitch_when_switchCompletes() =
+            runTest {
+                val currentTree = UITree(packageName = "com.app1", nodes = listOf(UINode(id = "t", text = "data")))
+                val targetTree = UITree(packageName = "com.app2")
+
+                handler.executeSwitch(
+                    currentUITree = currentTree,
+                    targetPackage = "com.app2",
+                    launchAction = { true },
+                    getUITree = { targetTree },
+                )
+
+                coVerify {
+                    auditRepository.logAction(
+                        actionType = "APP_SWITCH",
+                        targetPackage = "com.app2",
+                        command = match { it.contains("com.app1") && it.contains("com.app2") },
+                        success = true,
+                        reasoning = any(),
+                        durationMs = any(),
+                    )
+                }
+            }
+
+        @Test
+        fun should_logFailedSwitch_when_launchFails() =
+            runTest {
+                val currentTree = UITree(packageName = "com.app1")
+
+                handler.executeSwitch(
+                    currentUITree = currentTree,
+                    targetPackage = "com.app2",
+                    launchAction = { false },
+                    getUITree = { UITree(packageName = "com.app1") },
+                )
+
+                coVerify {
+                    auditRepository.logAction(
+                        actionType = "APP_SWITCH",
+                        targetPackage = "com.app2",
+                        command = any(),
+                        success = false,
+                        reasoning = match { it.contains("Failed to launch") },
+                        durationMs = any(),
+                    )
+                }
             }
     }
 
