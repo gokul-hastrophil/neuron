@@ -6,8 +6,17 @@ import ai.neuron.character.model.PersonalityProfile
 /**
  * Generates a system prompt segment from personality traits, emotion, and history.
  * Output is prepended to the LLM system prompt to make responses match the character.
+ *
+ * SECURITY: User-controlled fields (name, backstory) are sanitized to prevent
+ * prompt injection before embedding in the system prompt.
  */
 object PersonalityPromptBuilder {
+    /** Max length for character name to prevent abuse. */
+    private const val MAX_NAME_LENGTH = 50
+
+    /** Max length for backstory field. */
+    private const val MAX_BACKSTORY_LENGTH = 300
+
     /**
      * Build a personality prompt segment.
      *
@@ -21,15 +30,17 @@ object PersonalityPromptBuilder {
         totalInteractions: Int,
     ): String =
         buildString {
-            append("You are ${profile.name}, an AI companion on the user's phone. ")
+            val safeName = sanitizeField(profile.name, MAX_NAME_LENGTH)
+            append("You are $safeName, an AI companion on the user's phone. ")
             append("Your speaking style: ${profile.speakingStyle.systemPromptDescription}. ")
 
             // Trait descriptions
             appendTraits(profile)
 
-            // Backstory
+            // Backstory (user-controlled, sanitize)
             if (profile.backstory.isNotBlank()) {
-                append("Background: ${profile.backstory} ")
+                val safeBackstory = sanitizeField(profile.backstory, MAX_BACKSTORY_LENGTH)
+                append("Background: $safeBackstory ")
             }
 
             // Current emotional state
@@ -78,5 +89,20 @@ object PersonalityPromptBuilder {
         if (traits.isNotEmpty()) {
             append("Personality: ${traits.joinToString(", ")}. ")
         }
+    }
+
+    /**
+     * Sanitize a user-controlled text field: truncate, strip control chars,
+     * and remove newlines to prevent injection via multi-line content.
+     */
+    private fun sanitizeField(
+        text: String,
+        maxLength: Int,
+    ): String {
+        return text
+            .take(maxLength)
+            .replace(Regex("""[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]"""), "")
+            .replace("\n", " ")
+            .replace("\r", " ")
     }
 }

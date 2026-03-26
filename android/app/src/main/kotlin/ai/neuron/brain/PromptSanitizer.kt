@@ -45,11 +45,22 @@ class PromptSanitizer
                 )
 
             /**
-             * Control characters to strip (null bytes, backspace, etc.).
+             * Control characters and Unicode tricks to strip.
              * Preserves newlines (\n), tabs (\t), and carriage returns (\r)
              * since those are handled separately.
+             *
+             * Includes:
+             * - ASCII control chars (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F)
+             * - Non-breaking space (U+00A0)
+             * - Unicode general punctuation spaces (U+2000-U+200B) incl. zero-width space
+             * - Bidirectional text overrides (U+202A-U+202E) — can reverse displayed text
+             * - Zero-width joiner/non-joiner (U+200C-U+200D)
+             * - Word joiner (U+2060), byte order mark (U+FEFF)
              */
-            private val CONTROL_CHAR_REGEX = Regex("""[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]""")
+            private val CONTROL_CHAR_REGEX =
+                Regex(
+                    """[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u00A0\u2000-\u200D\u202A-\u202E\u2060\uFEFF]""",
+                )
         }
 
         /**
