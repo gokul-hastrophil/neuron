@@ -26,6 +26,11 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NEURON_SECRET_TOKEN=${NEURON_SECRET_TOKEN:-auto}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434/v1}
+      - RATE_LIMIT_TOKENS_PER_MIN=${RATE_LIMIT_TOKENS_PER_MIN:-100000}
       - NEURON_DB_PATH=/data/memory.db
       - NEURON_VECTOR_DB_PATH=/data/vectors.db
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -100,7 +105,7 @@ services:
     volumes:
       - neuron-grafana:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=neuron
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-neuron}
       - GF_AUTH_ANONYMOUS_ENABLED=true
     networks:
       - neuron-net
