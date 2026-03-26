@@ -28,6 +28,7 @@ class AppSwitchHandler
         private val crossAppContext: CrossAppContext,
         private val intentTemplates: IntentTemplates,
         private val auditRepository: AuditRepository,
+        private val sensitivityGate: SensitivityGate,
     ) {
         companion object {
             private const val TAG = "AppSwitchHandler"
@@ -149,7 +150,10 @@ class AppSwitchHandler
                 return SwitchResult.Failed(targetPackage, reason)
             }
 
-            crossAppContext.recordAppSwitch(targetPackage)
+            // PRIVACY: only record non-sensitive packages in the app sequence
+            if (!sensitivityGate.isSensitivePackage(targetPackage)) {
+                crossAppContext.recordAppSwitch(targetPackage)
+            }
             Log.i(TAG, "Successfully switched to $targetPackage")
 
             auditRepository.logAction(

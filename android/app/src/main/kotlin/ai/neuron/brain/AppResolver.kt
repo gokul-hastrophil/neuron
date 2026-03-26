@@ -12,7 +12,9 @@ import javax.inject.Singleton
 @Singleton
 class AppResolver
     @Inject
-    constructor() {
+    constructor(
+        private val sensitivityGate: SensitivityGate,
+    ) {
         companion object {
             private const val TAG = "NeuronAppResolver"
 
@@ -49,13 +51,13 @@ class AppResolver
 
             // 1. Known apps map — but verify the package is actually installed
             KNOWN_APPS[lower]?.let { knownPkg ->
-                if (pm.getLaunchIntentForPackage(knownPkg) != null) return knownPkg
+                if (pm.getLaunchIntentForPackage(knownPkg) != null) return warnIfSensitive(knownPkg)
                 Log.w(TAG, "Known package '$knownPkg' not on this device, falling through to fuzzy match")
             }
 
             // 2. Package name validation (contains dot)
             if ('.' in value) {
-                if (pm.getLaunchIntentForPackage(value) != null) return value
+                if (pm.getLaunchIntentForPackage(value) != null) return warnIfSensitive(value)
                 Log.w(TAG, "Package '$value' not launchable, trying label lookup...")
             }
 
@@ -66,7 +68,7 @@ class AppResolver
             for (app in apps) {
                 val label = pm.getApplicationLabel(app).toString()
                 if (label.equals(lower, ignoreCase = true) || label.equals(searchTerm, ignoreCase = true)) {
-                    if (pm.getLaunchIntentForPackage(app.packageName) != null) return app.packageName
+                    if (pm.getLaunchIntentForPackage(app.packageName) != null) return warnIfSensitive(app.packageName)
                     Log.d(TAG, "Fuzzy exact match '${app.packageName}' not launchable, skipping")
                 }
             }
@@ -74,13 +76,26 @@ class AppResolver
             for (app in apps) {
                 val label = pm.getApplicationLabel(app).toString().lowercase()
                 if (label.contains(lower) || lower.contains(label)) {
-                    if (pm.getLaunchIntentForPackage(app.packageName) != null) return app.packageName
+                    if (pm.getLaunchIntentForPackage(app.packageName) != null) return warnIfSensitive(app.packageName)
                     Log.d(TAG, "Fuzzy partial match '${app.packageName}' not launchable, skipping")
                 }
             }
 
             // 4. Intent-based resolution fallback (for OEM devices)
-            return resolveViaIntent(lower, pm)
+            val result = resolveViaIntent(lower, pm)
+            return result?.let { warnIfSensitive(it) }
+        }
+
+        /**
+         * Log a security warning when resolving to a sensitive app.
+         * Callers (LLMRouter, AppSwitchHandler) must check SensitivityGate
+         * before executing actions on the resolved app.
+         */
+        private fun warnIfSensitive(packageName: String): String {
+            if (sensitivityGate.isSensitivePackage(packageName)) {
+                Log.w(TAG, "SECURITY: Resolved to sensitive app: $packageName — callers must enforce T4")
+            }
+            return packageName
         }
 
         private fun resolveViaIntent(

@@ -59,7 +59,10 @@ class CrossAppContext
             }
         }
 
-        fun getAppSequence(): List<String> = appSequence.toList()
+        fun getAppSequence(): List<String> =
+            appSequence.map { pkg ->
+                sensitivityGate.getSensitiveLabel(pkg) ?: pkg
+            }
 
         /**
          * Build a context summary string for inclusion in LLM prompts.

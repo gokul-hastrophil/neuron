@@ -207,7 +207,7 @@ class IntentTemplates
         }
 
         private fun isValidPackageName(pkg: String): Boolean {
-            // Package names: lowercase letters, digits, dots, underscores; at least one dot
-            return pkg.matches(Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$"))
+            // Android package names are always lowercase; reject mixed-case to prevent injection
+            return pkg.matches(Regex("^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"))
         }
     }

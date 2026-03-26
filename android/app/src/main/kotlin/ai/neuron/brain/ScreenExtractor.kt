@@ -39,7 +39,10 @@ class ScreenExtractor
             if (sensitivityGate.isSensitive(uiTree)) return 0
 
             val packageName = uiTree.packageName
-            context.recordAppSwitch(packageName)
+            // PRIVACY: only record non-sensitive packages in the app sequence
+            if (!sensitivityGate.isSensitivePackage(packageName)) {
+                context.recordAppSwitch(packageName)
+            }
 
             val texts = mutableListOf<Pair<String, String>>()
             uiTree.nodes.forEach { node ->

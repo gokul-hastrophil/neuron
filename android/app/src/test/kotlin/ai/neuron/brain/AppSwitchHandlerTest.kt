@@ -37,13 +37,13 @@ class AppSwitchHandlerTest {
         screenExtractor = ScreenExtractor(sensitivityGate)
         intentTemplates = IntentTemplates(mockContext)
         auditRepository = mockk(relaxed = true)
-        handler = AppSwitchHandler(screenExtractor, crossAppContext, intentTemplates, auditRepository)
+        handler = AppSwitchHandler(screenExtractor, crossAppContext, intentTemplates, auditRepository, sensitivityGate)
     }
 
     @Nested
     @DisplayName("detectAppSwitch")
     inner class DetectAppSwitch {
-        private val appResolver = AppResolver()
+        private val appResolver by lazy { AppResolver(sensitivityGate) }
         private val mockPm: PackageManager = mockk(relaxed = true)
 
         @Test

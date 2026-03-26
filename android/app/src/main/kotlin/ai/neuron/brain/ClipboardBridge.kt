@@ -105,13 +105,27 @@ class ClipboardBridge
         }
 
         /**
-         * Full transfer cycle: copy, return a Runnable that clears after use.
+         * Copy text and schedule clipboard clear after a short delay.
+         * This limits the exposure window for transferred data.
+         *
+         * @param text The text to copy
+         * @param isSensitive Whether this data came from a sensitive context
+         * @param clearDelayMs Delay before auto-clearing clipboard (default 10s)
+         * @return true if successfully copied (clipboard will be cleared after delay)
          */
         fun copyWithAutoClean(
             text: String,
             isSensitive: Boolean = false,
+            clearDelayMs: Long = 10_000L,
         ): Boolean {
-            return copyForTransfer(text, isSensitive)
+            val copied = copyForTransfer(text, isSensitive)
+            if (copied) {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                    { clearClipboard() },
+                    clearDelayMs,
+                )
+            }
+            return copied
         }
 
         private fun containsSensitiveContent(text: String): Boolean {

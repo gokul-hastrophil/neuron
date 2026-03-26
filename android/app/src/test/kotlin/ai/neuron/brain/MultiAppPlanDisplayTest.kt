@@ -16,7 +16,7 @@ class MultiAppPlanDisplayTest {
 
     @BeforeEach
     fun setup() {
-        appResolver = AppResolver()
+        appResolver = AppResolver(SensitivityGate())
         display = MultiAppPlanDisplay(appResolver)
     }
 

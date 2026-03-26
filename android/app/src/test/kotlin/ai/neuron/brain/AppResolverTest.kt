@@ -18,12 +18,15 @@ import org.junit.jupiter.api.Test
 @DisplayName("AppResolver")
 class AppResolverTest {
     private lateinit var pm: PackageManager
+    private lateinit var sensitivityGate: SensitivityGate
     private lateinit var resolver: AppResolver
 
     @BeforeEach
     fun setup() {
         pm = mockk(relaxed = true)
-        resolver = AppResolver()
+        sensitivityGate = mockk(relaxed = true)
+        every { sensitivityGate.isSensitivePackage(any()) } returns false
+        resolver = AppResolver(sensitivityGate)
     }
 
     @Nested
