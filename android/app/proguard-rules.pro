@@ -42,6 +42,14 @@
     public static int d(...);
 }
 
+# Google Tink / EncryptedSharedPreferences
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.api.client.http.**
+-dontwarn com.google.api.client.http.javanet.**
+-dontwarn org.joda.time.Instant
+-keep class com.google.crypto.tink.** { *; }
+
 # OkHttp + Retrofit
 -dontwarn okhttp3.**
 -dontwarn retrofit2.**

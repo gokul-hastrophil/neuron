@@ -1,6 +1,7 @@
 package ai.neuron.accessibility
 
 import ai.neuron.brain.NeuronBrainService
+import ai.neuron.brain.client.SecureKeyStore
 import ai.neuron.brain.model.EngineState
 import ai.neuron.input.SpeechRecognitionManager
 import ai.neuron.input.VoiceInputController
@@ -137,8 +138,9 @@ class NeuronAccessibilityService : AccessibilityService() {
     }
 
     private fun startWakeWordDetection(voice: VoiceInputController) {
+        val secureKeyStore = SecureKeyStore(this)
+        val accessKey = secureKeyStore.picovoiceAccessKey
         val prefs = getSharedPreferences("neuron_prefs", Context.MODE_PRIVATE)
-        val accessKey = prefs.getString("picovoice_access_key", "") ?: ""
         val keywordName = prefs.getString("wake_word_keyword", "JARVIS") ?: "JARVIS"
 
         if (accessKey.isBlank()) {
