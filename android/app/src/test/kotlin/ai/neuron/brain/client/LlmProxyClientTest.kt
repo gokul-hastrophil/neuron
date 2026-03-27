@@ -49,10 +49,10 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
-                        "text": "{\"action_type\": \"tap\", \"target_id\": \"com.app:id/btn\", \"confidence\": 0.95, \"reasoning\": \"Tapping\"}",
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"action_type\": \"tap\", \"target_id\": \"com.app:id/btn\", \"confidence\": 0.95, \"reasoning\": \"Tapping\"}"}, "finish_reason": "stop"}],
                         "model": "gemini-2.5-flash",
                         "tier": "T2",
-                        "tokens_used": 150,
+                        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
                         "latency_ms": 500
                     }
                     """.trimIndent()
@@ -75,7 +75,7 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
-                        "text": "{\"action_type\": \"done\", \"reasoning\": \"done\", \"confidence\": 1.0}",
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"action_type\": \"done\", \"reasoning\": \"done\", \"confidence\": 1.0}"}, "finish_reason": "stop"}],
                         "model": "proxy",
                         "tier": "T3"
                     }
@@ -91,7 +91,7 @@ class LlmProxyClientTest {
                 assertEquals("Bearer test-device-token", request.getHeader("Authorization"))
 
                 val body = request.body.readUtf8()
-                assertTrue(body.contains("\"tier\":\"T3\""))
+                assertTrue(body.contains("\"model_tier\":\"t3\""))
                 assertTrue(body.contains("\"role\":\"system\""))
                 assertTrue(body.contains("\"role\":\"user\""))
             }
@@ -102,7 +102,7 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
-                        "text": "{\"action_type\": \"done\", \"reasoning\": \"Task complete\", \"confidence\": 1.0}",
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"action_type\": \"done\", \"reasoning\": \"Task complete\", \"confidence\": 1.0}"}, "finish_reason": "stop"}],
                         "model": "gemini-2.0-flash",
                         "tier": "T2"
                     }
@@ -160,6 +160,7 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
+                        "choices": [],
                         "model": "test"
                     }
                     """.trimIndent()
@@ -178,7 +179,7 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
-                        "text": "This is not JSON at all",
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "This is not JSON at all"}, "finish_reason": "stop"}],
                         "model": "test"
                     }
                     """.trimIndent()
@@ -214,7 +215,7 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
-                        "text": "{\"action_type\": \"done\", \"reasoning\": \"ok\", \"confidence\": 1.0}",
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"action_type\": \"done\", \"reasoning\": \"ok\", \"confidence\": 1.0}"}, "finish_reason": "stop"}],
                         "model": "test"
                     }
                     """.trimIndent()
@@ -260,7 +261,7 @@ class LlmProxyClientTest {
                 val responseBody =
                     """
                     {
-                        "text": "{\"name\": \"navigate\", \"args\": {\"value\": \"home\"}}",
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"name\": \"navigate\", \"args\": {\"value\": \"home\"}}"}, "finish_reason": "stop"}],
                         "model": "test"
                     }
                     """.trimIndent()
