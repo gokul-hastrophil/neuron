@@ -18,11 +18,17 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 
 @Serializable
-data class ProxyChatRequest(
-    val tier: String,
-    val messages: List<ProxyChatMessage>,
+data class ProxyChatParams(
     val temperature: Double = 0.2,
     @SerialName("max_tokens") val maxTokens: Int = 2048,
+    @SerialName("top_p") val topP: Double = 1.0,
+)
+
+@Serializable
+data class ProxyChatRequest(
+    @SerialName("model_tier") val modelTier: String,
+    val messages: List<ProxyChatMessage>,
+    val params: ProxyChatParams = ProxyChatParams(),
     val stream: Boolean = false,
 )
 
@@ -33,14 +39,32 @@ data class ProxyChatMessage(
 )
 
 @Serializable
-data class ProxyChatResponse(
-    val text: String? = null,
-    val model: String? = null,
-    val tier: String? = null,
-    @SerialName("tokens_used") val tokensUsed: Int? = null,
-    @SerialName("latency_ms") val latencyMs: Long? = null,
-    val error: String? = null,
+data class ProxyChatChoice(
+    val index: Int = 0,
+    val message: ProxyChatMessage? = null,
+    @SerialName("finish_reason") val finishReason: String? = null,
 )
+
+@Serializable
+data class ProxyUsageInfo(
+    @SerialName("prompt_tokens") val promptTokens: Int = 0,
+    @SerialName("completion_tokens") val completionTokens: Int = 0,
+    @SerialName("total_tokens") val totalTokens: Int = 0,
+)
+
+@Serializable
+data class ProxyChatResponse(
+    val choices: List<ProxyChatChoice> = emptyList(),
+    val model: String? = null,
+    val provider: String? = null,
+    val tier: String? = null,
+    val usage: ProxyUsageInfo? = null,
+    @SerialName("latency_ms") val latencyMs: Double? = null,
+    val error: String? = null,
+) {
+    val text: String? get() = choices.firstOrNull()?.message?.content
+    val tokensUsed: Int? get() = usage?.totalTokens?.takeIf { it > 0 }
+}
 
 interface LlmProxyApi {
     @POST("v1/llm/chat")
@@ -104,10 +128,12 @@ class LlmProxyClient(
 
             val request =
                 ProxyChatRequest(
-                    tier = tier.name,
+                    modelTier = tier.name.lowercase(),
                     messages = messages,
-                    temperature = temperature,
-                    maxTokens = maxTokens,
+                    params = ProxyChatParams(
+                        temperature = temperature,
+                        maxTokens = maxTokens,
+                    ),
                     stream = false,
                 )
 
@@ -158,7 +184,7 @@ class LlmProxyClient(
                 llmResponse.copy(
                     tier = response.tier ?: tier.name,
                     modelId = response.model ?: "proxy",
-                    latencyMs = response.latencyMs ?: latency,
+                    latencyMs = response.latencyMs?.toLong() ?: latency,
                     tokensUsed = response.tokensUsed,
                 )
             Log.d(
