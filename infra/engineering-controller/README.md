@@ -9,7 +9,7 @@ GitHub: work intake via open issues labeled `agent-ready`. No other issue is eli
 ## VPS setup
 1. Install Docker Engine and Docker Compose.
 2. Copy `.env.example` to `.env`; replace secrets. Keep `.env` out of Git.
-3. Use a GitHub App installation token with minimal repository permissions. This starter accepts a static token; **token renewal must be implemented before unattended production use**.
+3. Create a GitHub App with minimal repository permissions. Store its private key at `secrets/github-app.pem` on the VPS (never commit it), configure the app ID and installation ID in `.env`. The controller obtains and refreshes short-lived installation tokens.
 4. Run `docker compose up --build -d`.
 5. Keep port 8080 private. The compose file binds it to localhost.
 6. Run `curl -H "Authorization: Bearer $CONTROLLER_TOKEN" -X POST http://127.0.0.1:8080/sync` to import labeled issues. Automate sync with a restricted scheduler later.
@@ -23,7 +23,7 @@ Run `python worker.py`.
 
 ## Next hardening requirements
 - Replace shared bearer token with per-worker credentials and rotation.
-- GitHub App installation-token renewal and webhook signature validation.
+- GitHub App webhook signature validation (polling is currently used).
 - Lease heartbeats and reconciliation for interrupted external writes.
 - Bounded retries, dead-letter handling, audit log, concurrency limits.
 - Coding-model API adapter with spending caps and isolated ephemeral worktrees.
