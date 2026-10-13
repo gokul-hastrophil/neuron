@@ -29,3 +29,11 @@ class TestCodexRunner(unittest.TestCase):
             (Path(path) / ".git").mkdir()
             with self.assertRaises(ValueError):
                 run_codex("task", path, timeout_seconds=999999)
+
+
+class WorkerBootstrapTests(unittest.TestCase):
+    def test_worker_does_not_claim_jobs_by_default(self):
+        import sys
+        import worker
+        with patch.object(sys, 'argv', ['worker.py']):
+            self.assertEqual(worker.main(), 78)
