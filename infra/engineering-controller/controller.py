@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import psycopg
+from github_auth import configured_credentials
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
@@ -67,9 +68,10 @@ def health():
 @app.post("/sync", dependencies=[Depends(authorize)])
 async def sync():
     """Import ONLY issues explicitly labeled agent-ready."""
-    github_token = os.environ.get("GITHUB_TOKEN")
-    if not github_token:
-        raise HTTPException(503, "GITHUB_TOKEN not configured")
+    credentials = configured_credentials()
+    if not credentials:
+        raise HTTPException(503, "GitHub App credentials not configured")
+    github_token = credentials.installation_token()
     headers = {"Authorization": f"Bearer {github_token}",
                "Accept": "application/vnd.github+json",
                "X-GitHub-Api-Version": "2022-11-28"}
