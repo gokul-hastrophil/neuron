@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gokul-hastrophil/neuron/contracts/v1/tool-proposal.schema.json",
+  "title": "Neuron V1 Tool Proposal",
+  "description": "Untrusted model proposal. Validation is necessary but never authorizes execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "arguments"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "tool": {"type": "string", "enum": ["apps.open", "maps.navigate", "web.search", "reminder.create", "reminder.list", "reminder.cancel", "briefing.generate", "memory.propose", "message.prepare"]},
+    "arguments": {"type": "object", "maxProperties": 8},
+    "request_id": {"type": "string", "format": "uuid"},
+    "reason": {"type": "string", "maxLength": 280}
+  },
+  "oneOf": [
+    {"properties": {"tool": {"const": "apps.open"}, "arguments": {"$ref": "#/$defs/appOpen"}}},
+    {"properties": {"tool": {"const": "maps.navigate"}, "arguments": {"$ref": "#/$defs/navigate"}}},
+    {"properties": {"tool": {"const": "web.search"}, "arguments": {"$ref": "#/$defs/search"}}},
+    {"properties": {"tool": {"const": "reminder.create"}, "arguments": {"$ref": "#/$defs/reminderCreate"}}},
+    {"properties": {"tool": {"const": "reminder.list"}, "arguments": {"$ref": "#/$defs/empty"}}},
+    {"properties": {"tool": {"const": "reminder.cancel"}, "arguments": {"$ref": "#/$defs/reminderCancel"}}},
+    {"properties": {"tool": {"const": "briefing.generate"}, "arguments": {"$ref": "#/$defs/empty"}}},
+    {"properties": {"tool": {"const": "memory.propose"}, "arguments": {"$ref": "#/$defs/memoryPropose"}}},
+    {"properties": {"tool": {"const": "message.prepare"}, "arguments": {"$ref": "#/$defs/messagePrepare"}}}
+  ],
+  "$defs": {
+    "empty": {"type": "object", "additionalProperties": false, "maxProperties": 0},
+    "appOpen": {"type": "object", "additionalProperties": false, "required": ["app_name"], "properties": {"app_name": {"type": "string", "minLength": 1, "maxLength": 100}}},
+    "navigate": {"type": "object", "additionalProperties": false, "required": ["destination"], "properties": {"destination": {"type": "string", "minLength": 1, "maxLength": 250}}},
+    "search": {"type": "object", "additionalProperties": false, "required": ["query"], "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 500}}},
+    "reminderCreate": {"type": "object", "additionalProperties": false, "required": ["title", "due_at"], "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "due_at": {"type": "string", "format": "date-time"}}},
+    "reminderCancel": {"type": "object", "additionalProperties": false, "required": ["reminder_id"], "properties": {"reminder_id": {"type": "string", "format": "uuid"}}},
+    "memoryPropose": {"type": "object", "additionalProperties": false, "required": ["category", "value"], "properties": {"category": {"type": "string", "enum": ["preference", "place", "app_alias"]}, "value": {"type": "string", "minLength": 1, "maxLength": 300}}},
+    "messagePrepare": {"type": "object", "additionalProperties": false, "required": ["recipient", "body"], "properties": {"recipient": {"type": "string", "minLength": 1, "maxLength": 120}, "body": {"type": "string", "minLength": 1, "maxLength": 2000}}}
+  }
+}
